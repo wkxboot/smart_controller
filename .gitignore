@@ -1,0 +1,6 @@
+/smart_controller/board/iar/*
+!/smart_controller/board/iar/smart_controller.eww
+!/smart_controller/board/iar/smart_controller.ewd
+!/smart_controller/board/iar/smart_controller.ewp
+!/smart_controller/board/iar/LPC5460xJ512.icf
+!/smart_controller/board/iar/startup_LPC54606.s
