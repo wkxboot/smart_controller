@@ -1,10 +1,8 @@
 #include "cmsis_os.h"
 #include "tasks_init.h"
 #include "adc_task.h"
-#include "alarm_task.h"
 #include "compressor_task.h"
 #include "temperature_task.h"
-#include "display_task.h"
 #include "log.h"
 #define  LOG_MODULE_LEVEL    LOG_LEVEL_DEBUG
 #define  LOG_MODULE_NAME     "[t_task]"

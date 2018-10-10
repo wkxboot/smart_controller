@@ -36,7 +36,8 @@
 #include "adc_task.h"
 #include "cpu_task.h"
 #include "protocol_task.h"
-
+#include "scale_task.h"
+#include "door_lock_task.h"
 #include "log.h"
 #define LOG_MODULE_NAME   "[main]"
 #define LOG_MODULE_LEVEL   LOG_LEVEL_DEBUG  
@@ -68,16 +69,16 @@ int main(void)
     log_init();
     osThreadDef(cpu_task, cpu_task, osPriorityNormal, 0, 128);
     cpu_task_hdl = osThreadCreate(osThread(cpu_task), NULL);
-    /*
-    osThreadDef(adc_task, adc_task, osPriorityNormal, 0, 128);
-    adc_task_hdl = osThreadCreate(osThread(adc_task), NULL);
-
-    osThreadDef(scale_task, scale_task, osPriorityNormal, 0, 180);
+    
+    osThreadDef(scale_task, scale_task, osPriorityNormal, 0, 256);
     scale_task_hdl = osThreadCreate(osThread(scale_task), NULL);
 
-    osThreadDef(protocol_task, protocol_task, osPriorityNormal, 0, 128);
+    osThreadDef(door_lock_task, door_lock_task, osPriorityNormal, 0, 128);
+    door_lock_task_hdl = osThreadCreate(osThread(door_lock_task), NULL);
+
+    osThreadDef(protocol_task, protocol_task, osPriorityNormal, 0, 256);
     protocol_task_hdl = osThreadCreate(osThread(protocol_task), NULL);
-    */
+ 
 
 
   /* Start scheduler */

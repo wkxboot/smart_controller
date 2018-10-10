@@ -2080,6 +2080,12 @@
                 <name>$PROJ_DIR$\..\bsp\clock_config.c</name>
             </file>
             <file>
+                <name>$PROJ_DIR$\..\bsp\nxp_protocol_serial.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\bsp\nxp_scale_serial.c</name>
+            </file>
+            <file>
                 <name>$PROJ_DIR$\..\bsp\pin_mux.c</name>
             </file>
         </group>
@@ -2131,6 +2137,18 @@
                 <name>tasks</name>
                 <file>
                     <name>$PROJ_DIR$\..\user\tasks\cpu_task.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\user\tasks\door_lock_task.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\user\tasks\protocol_task.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\user\tasks\scale_task.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\user\tasks\tasks_init.c</name>
                 </file>
             </group>
         </group>

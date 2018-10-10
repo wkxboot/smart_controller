@@ -1,25 +1,30 @@
 #include "board.h"
 #include "cmsis_os.h"
-#include "task_msg.h"
+#include "serial.h"
+#include "tasks_init.h"
 #include "scale_task.h"
+#include "door_lock_task.h"
 #include "protocol_task.h"
 #include "log.h"
 #define LOG_MODULE_NAME   "[protocol]"
-#define LOG_MODULE_LEVEL   LOG_LEVEL_ERROR 
+#define LOG_MODULE_LEVEL   LOG_LEVEL_DEBUG 
 
 extern int protocol_serial_handle;
 extern serial_hal_driver_t protocol_serial_driver;
 
-osThreadId protocol_task_hdl;
+osThreadId   protocol_task_hdl;
 osMessageQId protocol_task_msg_q_id;
 
-task_msg_t scale_msg;
+static task_msg_t scale_msg;
+static task_msg_t door_lock_msg;
+
 
 typedef enum
 {
  PROTOCOL_TASK_ADU_STEP=0,
  PROTOCOL_TASK_CRC_STEP
 }protocol_step_t;
+
 
 /* Table of CRC values for high-order byte */
 static const uint8_t table_crc_hi[] = {
@@ -108,210 +113,233 @@ send_buffer[length_to_write++] = crc_calculated >> 8;
 return length_to_write;
 }
 
-
-static int16_t protocol_get_net_weight()
+static int protocol_task_get_net_weight(int16_t *net_weight)
 {
- osStatus status;
- osEvent  os_msg;
+ osStatus   status;
+ osEvent    os_msg;
  task_msg_t *msg;
- int16_t net_weight =0;
+ int        rc = -1;
  
  scale_msg.type = REQ_NET_WEIGHT;
- status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
- log_assert(status == osOK);
- while(1){
+ status = osMessagePut(protocol_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
+ if(status != osOK){
+  return rc;
+ }
+ 
  os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
  if(os_msg.status == osEventMessage){
- msg =  (task_msg_t *)os_msg.value.v;
+ msg = (task_msg_t *)os_msg.value.v;
  if(msg->type == RESPONSE_NET_WEIGHT){
-   net_weight = msg->net_weight;
-   break;
-  }  
+   for(uint8_t i=0;i<SCALE_TASK_SCALE_CNT;i++){
+   *net_weight++ = *msg->net_weight++;
+   }
+   rc = 0;
  }
  }
- return net_weight;
+ 
+ return rc;
 }
 
 
-static int protocol_remove_tar_weight()
+
+
+static int protocol_task_get_door_status(uint8_t *door_status)
 {
- osStatus status;
- osEvent  os_msg;
+ osStatus   status;
+ osEvent    os_msg;
  task_msg_t *msg;
- int        result = -1;
+ int        rc = -1;
  
- scale_msg.type = REQ_REMOVE_TAR_WEIGHT;
- status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
- log_assert(status == osOK);
- while(1){
+ door_lock_msg.type = REQ_DOOR_STATUS;
+ status = osMessagePut(scale_task_msg_q_id,(uint32_t)&door_lock_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
+ if(status != osOK){
+  return rc;
+ }
+ 
  os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
  if(os_msg.status == osEventMessage){
  msg = (task_msg_t *)os_msg.value.v;
- if(msg->type == RESPONSE_REMOVE_TAR_WEIGHT){
-   if( msg->result == SCALE_TASK_SUCCESS){
-     result = 0;
-   }else{
-     result = -1;
-   }  
-  break;
-  }
+ if(msg->type == RESPONSE_DOOR_STATUS){
+   *door_status = msg->door_status;
+   rc = 0;
  }
  }
- return result;
+ 
+ return rc;
 }
 
-static int protocol_calibrate_weight(int16_t weight)
+static int protocol_task_get_lock_status(uint8_t *lock_status)
 {
- osStatus status;
- osEvent  os_msg;
+ osStatus   status;
+ osEvent    os_msg;
  task_msg_t *msg;
- int        result = -1;
+ int        rc = -1;
  
- if(weight == 0){
- scale_msg.type = REQ_CALIBRATE_ZERO;
- }else{
- scale_msg.type = REQ_CALIBRATE_FULL; 
- } 
- scale_msg.calibrate_weight = weight;
+ scale_msg.type = REQ_LOCK_STATUS;
  status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
- log_assert(status == osOK);
- while(1){
+ if(status != osOK){
+  return rc;
+ }
+ 
  os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
  if(os_msg.status == osEventMessage){
  msg = (task_msg_t *)os_msg.value.v;
- if(msg->type == RESPONSE_CALIBRATE_ZERO || msg->type == RESPONSE_CALIBRATE_FULL){
-   if( msg->result == SCALE_TASK_SUCCESS){
-     result = 0;
-   }else{
-     result = -1;
-   }  
-  break;
-  }
+ if(msg->type == RESPONSE_LOCK_STATUS){
+   *lock_status = msg->lock_status;
+   rc = 0;
  }
  }
- return result;
+ 
+ return rc;
 }
 
-static uint8_t protocol_get_sensor_id()
+static uint8_t protocol_task_get_temperature(int8_t *temperature)
 {
- osStatus status;
- osEvent  os_msg;
+ osStatus   status;
+ osEvent    os_msg;
  task_msg_t *msg;
- uint8_t sensor_id = 0;
+ int        rc = -1;
  
- scale_msg.type = REQ_SENSOR_ID;
+ scale_msg.type = REQ_TEMPERATURE;
  status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
- log_assert(status == osOK);
- while(1){
- os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
- if(os_msg.status == osEventMessage){
- msg =  (task_msg_t *)os_msg.value.v;
- if(msg->type == RESPONSE_SENSOR_ID){
-   sensor_id = msg->sensor_id;
-   break;
-  }  
+ if(status != osOK){
+  return rc;
  }
- }
- return sensor_id;
-}
-
-static uint16_t protocol_get_fireware_version()
-{
- osStatus status;
- osEvent  os_msg;
- task_msg_t *msg;
- uint16_t   version = 0;
  
- scale_msg.type = REQ_VERSION;
- status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
- log_assert(status == osOK);
- while(1){
- os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
- if(os_msg.status == osEventMessage){
- msg =  (task_msg_t *)os_msg.value.v;
- if(msg->type == RESPONSE_VERSION){
-   version = msg->version;
-   break;
-  }  
- }
- }
- return version;
-}
-
-static uint8_t protocol_get_scale_addr()
-{
- osStatus status;
- osEvent  os_msg;
- task_msg_t *msg;
- uint16_t   addr = 0;
- 
- scale_msg.type = REQ_ADDR;
- status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
- log_assert(status == osOK);
- while(1){
- os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
- if(os_msg.status == osEventMessage){
- msg =  (task_msg_t *)os_msg.value.v;
- if(msg->type == RESPONSE_ADDR){
-   addr = msg->scale_addr;
-   break;
-  }  
- }
- }
- return addr;
-}
-
-int protocol_set_scale_addr(uint8_t addr)
-{
- osStatus status;
- osEvent  os_msg;
- task_msg_t *msg;
- int        result = -1;
- 
- scale_msg.type = REQ_SET_ADDR;
- scale_msg.scale_addr = addr;
- status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
- log_assert(status == osOK);
- while(1){
  os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
  if(os_msg.status == osEventMessage){
  msg = (task_msg_t *)os_msg.value.v;
- if(msg->type == RESPONSE_SET_ADDR){
-   if( msg->result == SCALE_TASK_SUCCESS){
-     result = 0;
-   }else{
-     result = -1;
-   }  
-  break;
-  }
+ if(msg->type == RESPONSE_TEMPERATURE){
+   *temperature = msg->temperature;
+   rc = 0;
  }
  }
- return result;
+ 
+ return rc;
 }
 
+static int protocol_task_get_manufacture_id(uint16_t *id)
+{
+ osStatus   status;
+ osEvent    os_msg;
+ task_msg_t *msg;
+ int        rc = -1;
+ 
+ scale_msg.type = REQ_MANUFACTURE_ID;
+ status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
+ if(status != osOK){
+  return rc;
+ }
+ 
+ os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
+ if(os_msg.status == osEventMessage){
+ msg = (task_msg_t *)os_msg.value.v;
+ if(msg->type == RESPONSE_MANUFACTURE_ID){
+   *id = msg->manufacture_id;
+   rc = 0;
+ }
+ }
+ 
+ return rc;
+}
+
+static int protocol_task_get_scale_cnt(uint8_t *scale_cnt)
+{
+ osStatus   status;
+ osEvent    os_msg;
+ task_msg_t *msg;
+ int        rc = -1;
+ 
+ scale_msg.type = REQ_SCALE_CNT;
+ status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
+ if(status != osOK){
+  return rc;
+ }
+ 
+ os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
+ if(os_msg.status == osEventMessage){
+ msg = (task_msg_t *)os_msg.value.v;
+ if(msg->type == RESPONSE_SCALE_CNT){
+   *scale_cnt = msg->scale_cnt;
+   rc = 0;
+ }
+ }
+ 
+ return rc;
+}
+
+int protocol_task_unlock(uint8_t *result)
+{
+ osStatus   status;
+ osEvent    os_msg;
+ task_msg_t *msg;
+ int        rc = -1;
+ 
+ door_lock_msg.type = REQ_UNLOCK;
+ status = osMessagePut(door_lock_task_msg_q_id,(uint32_t)&door_lock_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
+ if(status != osOK){
+  return rc;
+ }
+ 
+ os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
+ if(os_msg.status == osEventMessage){
+ msg = (task_msg_t *)os_msg.value.v;
+ if(msg->type == RESPONSE_UNLOCK_RESULT){
+   *result = msg->unlock_result;
+   rc = 0;
+ }
+ }
+ 
+ return rc;
+}
+
+static int protocol_task_lock(uint8_t *result)
+{
+ osStatus   status;
+ osEvent    os_msg;
+ task_msg_t *msg;
+ int        rc = -1;
+ 
+ door_lock_msg.type = REQ_LOCK;
+ status = osMessagePut(door_lock_task_msg_q_id,(uint32_t)&door_lock_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
+ if(status != osOK){
+  return rc;
+ }
+ 
+ os_msg = osMessageGet(protocol_task_msg_q_id,PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE);
+ if(os_msg.status == osEventMessage){
+ msg = (task_msg_t *)os_msg.value.v;
+ if(msg->type == RESPONSE_LOCK_RESULT){
+   *result = msg->lock_result;
+   rc = 0;
+ }
+ }
+ 
+ return rc;
+}
 
 
 void protocol_task(void const * argument)
 {
- static uint8_t scale_addr;
  int rc; 
  int length_to_read,read_length=0;
  int length_to_write,write_length,remain_length;
  uint8_t  result;
+ uint8_t  status;
+ uint8_t  scale_cnt; 
  uint32_t timeout;
  uint16_t crc_calculated;
  uint16_t crc_received;
- int16_t  calibrate_weight;
- int16_t  net_weight;
- uint16_t version;
- uint8_t  sensor_id;
- uint8_t  scale_set_addr;
+ int16_t  net_weight[SCALE_TASK_SCALE_CNT];
+ uint16_t id;
+ int8_t   temperature;
  protocol_step_t step;
+ 
  
  uint8_t recv_buffer[PROTOCOL_TASK_FRAME_SIZE_MAX];
  uint8_t send_buffer[PROTOCOL_TASK_FRAME_SIZE_MAX];
  
- osMessageQDef(protocol_task_msg_q,6,uint32_t);
+ osMessageQDef(protocol_task_msg_q,1,uint32_t);
  protocol_task_msg_q_id = osMessageCreate(osMessageQ(protocol_task_msg_q),protocol_task_hdl);
  log_assert(protocol_task_msg_q_id); 
  
@@ -328,22 +356,21 @@ void protocol_task(void const * argument)
  
  log_assert(rc == 0); 
  
- /*等待scale_task启动完毕*/
- osDelay(PROTOCOL_TASK_START_DELAY_TIME_VALUE);
+  /*等待任务同步*/
+  xEventGroupSync(tasks_sync_evt_group_hdl,TASKS_SYNC_EVENT_PROTOCOL_TASK_RDY,TASKS_SYNC_EVENT_ALL_TASKS_RDY,osWaitForever);
+  log_debug("protocol task sync ok.\r\n");
  
- /*读取上电后当前地址值*/
- scale_addr = protocol_get_scale_addr();
  serial_flush(protocol_serial_handle);
  
  while(1){
 protocol_parse_start:
-  /*使能485接收*/
-  bsp_485_enable_read();
+
   timeout = PROTOCOL_TASK_FRAME_TIMEOUT_VALUE;
-  length_to_read = 4;
+  length_to_read = 2;
   read_length =0;
   length_to_write = 0;
   step = PROTOCOL_TASK_ADU_STEP;
+  
   while(length_to_read != 0){
   rc = serial_select(protocol_serial_handle,timeout);
   if(rc == -1){
@@ -362,7 +389,7 @@ protocol_parse_start:
    }
 
    for (int i=0; i < rc; i++){
-   log_array("<%2X>\r\n", recv_buffer[read_length + i]);
+   log_debug("<%2X>\r\n", recv_buffer[read_length + i]);
    }
    
    read_length +=rc;
@@ -372,211 +399,223 @@ protocol_parse_start:
      switch(step){
      /*接收到了协议头和数据长度域*/
      case PROTOCOL_TASK_ADU_STEP:
-     if(recv_buffer[PROTOCOL_TASK_HEADER0_OFFSET] == PROTOCOL_TASK_HEADER0_VALUE &&
-        recv_buffer[PROTOCOL_TASK_HEADER1_OFFSET] == PROTOCOL_TASK_HEADER1_VALUE){
-         
-        length_to_read =*(int16_t*)&recv_buffer[PROTOCOL_TASK_SIZE_OFFSET];
-        if(length_to_read < PROTOCOL_TASK_ADU_SIZE_MIN + PROTOCOL_TASK_CRC_SIZE || length_to_read > PROTOCOL_TASK_ADU_SIZE_MAX + PROTOCOL_TASK_CRC_SIZE){
-        log_error("protocol err in adu size.\r\n");
-        goto protocol_parse_start;
-        }
+       if(recv_buffer[PROTOCOL_TASK_CMD_ADDR_OFFSET] == PROTOCOL_TASK_CMD_ADDR_VALUE){
         step = PROTOCOL_TASK_CRC_STEP;      
-        send_buffer[PROTOCOL_TASK_HEADER0_OFFSET]=PROTOCOL_TASK_HEADER0_VALUE;
-        send_buffer[PROTOCOL_TASK_HEADER1_OFFSET]=PROTOCOL_TASK_HEADER1_VALUE;
-        length_to_write+=PROTOCOL_TASK_HEADER_SIZE;
-        }else{
-        log_error("protocol err in header value.%d %d\r\n",recv_buffer[PROTOCOL_TASK_HEADER0_OFFSET],recv_buffer[PROTOCOL_TASK_HEADER1_OFFSET]);
+        send_buffer[PROTOCOL_TASK_CMD_ADDR_OFFSET]=PROTOCOL_TASK_CMD_ADDR_VALUE;
+        send_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET]=recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET];                                                              
+        length_to_write = PROTOCOL_TASK_CMD_ADDR_LEN + PROTOCOL_TASK_CMD_CODE_LEN; 
+              
+        if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_NET_WEIGHT){
+        length_to_read = PROTOCOL_TASK_CMD_NET_WEIGHT_PARAM_LEN + PROTOCOL_TASK_CMD_CRC_LEN;
+        }
+        
+        if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_DOOR_STATUS){
+        length_to_read = PROTOCOL_TASK_CMD_DOOR_STATUS_PARAM_LEN + PROTOCOL_TASK_CMD_CRC_LEN;
+        }
+                
+        if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_LOCK_STATUS){
+        length_to_read = PROTOCOL_TASK_CMD_LOCK_STATUS_PARAM_LEN + PROTOCOL_TASK_CMD_CRC_LEN;
+        }
+                       
+        if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_TEMPERATURE){
+        length_to_read = PROTOCOL_TASK_CMD_TEMPERATURE_PARAM_LEN + PROTOCOL_TASK_CMD_CRC_LEN;
+        }
+       
+        if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_MANUFACTURE_ID){
+        length_to_read = PROTOCOL_TASK_CMD_MANUFACTURE_ID_PARAM_LEN + PROTOCOL_TASK_CMD_CRC_LEN;
+        }
+        
+        if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_SCALE_CNT){
+        length_to_read = PROTOCOL_TASK_CMD_SCALE_CNT_PARAM_LEN + PROTOCOL_TASK_CMD_CRC_LEN;
+        }
+      
+        if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_UNLOCK){
+        length_to_read = PROTOCOL_TASK_CMD_UNLOCK_PARAM_LEN + PROTOCOL_TASK_CMD_CRC_LEN;
+        }
+              
+        if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_LOCK){
+        length_to_read = PROTOCOL_TASK_CMD_LOCK_PARAM_LEN + PROTOCOL_TASK_CMD_CRC_LEN;
+        }
+        
+        if(length_to_read == 0){
+        log_error("protocol err in code value:%d.\r\n",recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET]);
         goto protocol_parse_start;
         }
+       }else{
+         log_error("protocol err in addr value:%d.\r\n",recv_buffer[PROTOCOL_TASK_CMD_ADDR_OFFSET]);
+        goto protocol_parse_start;
+       } 
+                                                                    
      break;
      /*接收完成了全部的数据*/
      case PROTOCOL_TASK_CRC_STEP:
-       crc_calculated = protocol_task_crc16(recv_buffer,read_length - PROTOCOL_TASK_CRC_SIZE);
+       crc_calculated = protocol_task_crc16(recv_buffer,read_length - PROTOCOL_TASK_CMD_CRC_LEN);
        crc_received = recv_buffer[read_length-1]<< 8 | recv_buffer[read_length-2];
        if(crc_calculated != crc_received){
           log_error("protocol err in crc.recv:%d calculate:%d.\r\n",crc_received,crc_calculated);
           goto protocol_parse_start;
        }
        
-       if(recv_buffer[PROTOCOL_TASK_ADU_ADDR_OFFSET] != scale_addr ){
-        log_error("protocol err in addr.recv:%d legacy:%d.\r\n",recv_buffer[PROTOCOL_TASK_ADU_ADDR_OFFSET],scale_addr);
-        goto protocol_parse_start;  
-       }
-
        /*如果是读取净重值*/
-       if(recv_buffer[PROTOCOL_TASK_ADU_FUNC_OFFSET] == PROTOCOL_TASK_FUNC_READ_NET_WEIGHT && \
-          read_length == PROTOCOL_TASK_READ_NET_WEIGHT_FRAME_LEN){
-          send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_NET_WEIGHT_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE));
-          send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_NET_WEIGHT_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE)) >> 8;
-          send_buffer[length_to_write++] = scale_addr;  
-          send_buffer[length_to_write++] = PROTOCOL_TASK_FUNC_READ_NET_WEIGHT;
-          
-          net_weight = protocol_get_net_weight();
-          if(net_weight == SCALE_TASK_WEIGHT_ERR_VALUE){
-          net_weight = PROTOCOL_TASK_WEIGHT_ERR_VALUE;
+       if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_NET_WEIGHT){
+          rc = protocol_task_get_net_weight(net_weight);
+          if(rc != 0){
+          log_error("protocol get net weight err.\r\n");
+          goto protocol_parse_start;
           }
-
-          send_buffer[length_to_write++] = net_weight & 0xff;
-          send_buffer[length_to_write++] = net_weight >> 8;        
-          length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write);         
-          break;
-       }
-       
-       /*如果是去皮*/
-       if(recv_buffer[PROTOCOL_TASK_ADU_FUNC_OFFSET] == PROTOCOL_TASK_FUNC_REMOVE_TAR_WEIGHT && \
-          read_length == PROTOCOL_TASK_REMOVE_TAR_WEIGHT_FRAME_LEN){
-         send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_REMOVE_TAR_WEIGHT_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE));
-         send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_REMOVE_TAR_WEIGHT_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE)) >> 8; 
-         send_buffer[length_to_write++] = scale_addr;
-         send_buffer[length_to_write++]=PROTOCOL_TASK_FUNC_REMOVE_TAR_WEIGHT;
-         
-         /*执行去皮*/
-         rc = protocol_remove_tar_weight();
-         if(rc == 0){
-          result = PROTOCOL_TASK_SUCCESS_VALUE;                
-         }else{
-         result = PROTOCOL_TASK_FAILURE_VALUE; 
-         }
-         /*填充操作结果值*/
-         send_buffer[length_to_write++] = result;
-         /*填充CRC16值*/
-         length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
-         break;
-       }
-       
-        /*如果是0点校准*/
-       if(recv_buffer[PROTOCOL_TASK_ADU_FUNC_OFFSET] == PROTOCOL_TASK_FUNC_CALIBRATE_ZERO &&
-          read_length == PROTOCOL_TASK_CALIBRATE_ZERO_FRAME_LEN){
-         send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_CALIBRATE_ZERO_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE));
-         send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_CALIBRATE_ZERO_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE)) >> 8; 
-         send_buffer[length_to_write++] = scale_addr;  
-         send_buffer[length_to_write++]=PROTOCOL_TASK_FUNC_CALIBRATE_ZERO;
-         
-         calibrate_weight = *(int16_t *)&recv_buffer[PROTOCOL_TASK_ADU_PAYLOAD_OFFSET];     
-         if(calibrate_weight != 0){
-           log_error("protocol err in calibrate zero weight.weight:%d.\r\n",calibrate_weight); 
-           goto protocol_parse_start;;
-         }
-
-         /*执行0点量程校准*/
-         rc = protocol_calibrate_weight(calibrate_weight);
-         if(rc == 0){
-          result = PROTOCOL_TASK_SUCCESS_VALUE;                
-         }else{
-         result = PROTOCOL_TASK_FAILURE_VALUE; 
-         }
-         /*填充操作结果值*/
-         send_buffer[length_to_write++] = result;
-         /*填充CRC16值*/
-         length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
-         break;
-         }                
-     
-       
-       /*如果是full量程校准*/
-       if(recv_buffer[PROTOCOL_TASK_ADU_FUNC_OFFSET] == PROTOCOL_TASK_FUNC_CALIBRATE_FULL &&
-          read_length == PROTOCOL_TASK_CALIBRATE_FULL_FRAME_LEN){
-         send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_CALIBRATE_FULL_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE));
-         send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_CALIBRATE_FULL_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE)) >> 8; 
-         send_buffer[length_to_write++] = scale_addr;  
-         send_buffer[length_to_write++]=PROTOCOL_TASK_FUNC_CALIBRATE_FULL;  
-         
-         calibrate_weight = *(int16_t *)&recv_buffer[PROTOCOL_TASK_ADU_PAYLOAD_OFFSET];;
-         if(calibrate_weight <= 0){
-         log_error("protocol err in calibrate full weight.weight:%d.\r\n",calibrate_weight); 
-         goto protocol_parse_start; ;
-         }
-
-         /*执行满量程校准*/
-         rc = protocol_calibrate_weight(calibrate_weight);
-         if(rc == 0){
-          result = PROTOCOL_TASK_SUCCESS_VALUE;                
-         }else{
-          result = PROTOCOL_TASK_FAILURE_VALUE; 
-         }
-         /*填充操作结果值*/
-         send_buffer[length_to_write++] = result;
-         /*填充CRC16值*/
-         length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
-         break;              
-       }
-       
-       /*如果是读取传感器厂家ID*/
-       if(recv_buffer[PROTOCOL_TASK_ADU_FUNC_OFFSET] == PROTOCOL_TASK_FUNC_READ_SENSOR_ID && \
-          read_length == PROTOCOL_TASK_READ_SENSOR_ID_FRAME_LEN){
-            
-          send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_READ_SENSOR_ID_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE));
-          send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_READ_SENSOR_ID_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE)) >> 8; 
-          send_buffer[length_to_write++] = scale_addr;           
-          send_buffer[length_to_write++] = PROTOCOL_TASK_FUNC_READ_SENSOR_ID;
           
-          sensor_id = protocol_get_sensor_id();
-          send_buffer[length_to_write++] = sensor_id;
-          /*填充CRC16值*/
-          length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
-          break;               
+         /*所有称的重量值*/
+          if(recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET] == 0){
+            for(uint8_t i=0;i<SCALE_TASK_SCALE_CNT;i++){
+            send_buffer[length_to_write++] = net_weight[i] >> 8;
+            send_buffer[length_to_write++] = net_weight[i] & 0xFF;
+            } 
+            for(uint8_t i=0;i<PROTOCOL_TASK_SCALE_CNT_MAX - SCALE_TASK_SCALE_CNT;i++){
+            send_buffer[length_to_write++] = 0;
+            send_buffer[length_to_write++] = 0;
+            } 
+            
+          }else if(recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET] >= 1 && 
+                   recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET] <= PROTOCOL_TASK_CMD_SCALE_CNT){     
+          send_buffer[length_to_write++] = net_weight[recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET]] >> 8;
+          send_buffer[length_to_write++] = net_weight[recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET]] & 0xFF;
+          }else{
+          log_error("protocol scale num err:%d.\r\n",recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET]);
+          goto protocol_parse_start;
+          }       
+          
+          length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write);         
+       }
+       
+       /*如果是查询门状态*/
+        if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_DOOR_STATUS){
+         rc = protocol_task_get_door_status(&status);
+         if(rc != 0){
+         log_error("protocol task get door status err.\r\n");
+         goto protocol_parse_start;
+         }
+         if(status == DOOR_LOCK_TASK_DOOR_OPEN_STATUS){
+         result = PROTOCOL_TASK_DOOR_OPEN_STATUS;                
+         }else{
+         result = PROTOCOL_TASK_DOOR_CLOSE_STATUS; 
+         }
+         /*填充操作结果值*/
+         send_buffer[length_to_write++] = result;
+         /*填充CRC16值*/
+         length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
+       }
+            
+       /*如果是查询锁状态*/
+        if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_LOCK_STATUS){
+         rc = protocol_task_get_lock_status(&status);
+         if(rc != 0){
+         log_error("protocol task get lock status err.\r\n");
+         goto protocol_parse_start;
+         }
+         if(status == DOOR_LOCK_TASK_LOCK_OPEN_STATUS){
+         result = PROTOCOL_TASK_LOCK_OPEN_STATUS;                
+         }else{
+         result = PROTOCOL_TASK_DOOR_CLOSE_STATUS; 
+         }
+         /*填充操作结果值*/
+         send_buffer[length_to_write++] = result;
+         /*填充CRC16值*/
+         length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
+       }
+       
+       /*如果是查询温度值*/
+       if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_TEMPERATURE){
+         rc = protocol_task_get_temperature(&temperature);
+         if(rc != 0){
+         log_error("protocol task get temperature err.\r\n");
+         goto protocol_parse_start;
+         }
+
+         /*填充操作结果值*/
+         send_buffer[length_to_write++] = temperature;
+         /*填充CRC16值*/
+         length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
        }
       
       /*如果是读取固件版本号*/
-       if(recv_buffer[PROTOCOL_TASK_ADU_FUNC_OFFSET] == PROTOCOL_TASK_FUNC_READ_VERSION && \
-          read_length == PROTOCOL_TASK_READ_VERSION_FRAME_LEN){
-            
-          send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_READ_VERSION_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE));
-          send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_READ_VERSION_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE)) >> 8; 
-          send_buffer[length_to_write++] = scale_addr;  
-          send_buffer[length_to_write++] = PROTOCOL_TASK_FUNC_READ_VERSION;
-          
-          version = protocol_get_fireware_version();         
-          send_buffer[length_to_write++] = version & 0xff;
-          send_buffer[length_to_write++] = version >> 8;
-          length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
-          break;  
-      }
-      
-       /*如果是设置地址值*/
-       if(recv_buffer[PROTOCOL_TASK_ADU_FUNC_OFFSET] == PROTOCOL_TASK_FUNC_SET_ADDR && \
-          read_length == PROTOCOL_TASK_SET_ADDR_FRAME_LEN){
-            
-          send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_SET_ADDR_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE));
-          send_buffer[length_to_write++] = (PROTOCOL_TASK_RESPONSE_SET_ADDR_FRAME_LEN -(PROTOCOL_TASK_HEADER_SIZE + PROTOCOL_TASK_SIZE_SIZE)) >> 8; 
-          send_buffer[length_to_write++] = scale_addr;   
-          send_buffer[length_to_write++] = PROTOCOL_TASK_FUNC_SET_ADDR;
-          
-          scale_set_addr = recv_buffer[PROTOCOL_TASK_ADU_PAYLOAD_OFFSET];
-          rc = protocol_set_scale_addr(scale_set_addr);
+       if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_MANUFACTURE_ID){
+         rc = protocol_task_get_manufacture_id(&id);
+         if(rc != 0){
+         log_error("protocol task get manufacture id err.\r\n");
+         goto protocol_parse_start;
+         }
 
-          if(rc == 0){
-          result = PROTOCOL_TASK_SUCCESS_VALUE;  
-          /*暂存新地址值*/
-          scale_addr = scale_set_addr;
+         /*填充操作结果值*/
+         send_buffer[length_to_write++] = id >> 8;
+         send_buffer[length_to_write++] = id &  0xFF;
+         /*填充CRC16值*/
+         length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
+       }
+      
+      /*如果是获取称数量*/
+       if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_SCALE_CNT){
+         rc = protocol_task_get_scale_cnt(&scale_cnt);
+         if(rc != 0){
+         log_error("protocol task get scale cnt err.\r\n");
+         goto protocol_parse_start;
+         }
+
+         /*填充操作结果值*/
+         send_buffer[length_to_write++] = scale_cnt;
+         /*填充CRC16值*/
+         length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
+       }
+     
+       /*如果是开锁*/
+       if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_UNLOCK){
+         rc = protocol_task_unlock(&status);
+         if(rc != 0){
+         log_error("protocol task unlock err.\r\n");
+         goto protocol_parse_start;
+         }
+         if(status == DOOR_LOCK_TASK_UNLOCK_SUCCESS){
+         result = PROTOCOL_TASK_UNLOCK_SUCCESS;
          }else{
-          result = PROTOCOL_TASK_FAILURE_VALUE; 
+         result = PROTOCOL_TASK_UNLOCK_FAILURE;
          }
          /*填充操作结果值*/
          send_buffer[length_to_write++] = result;
          /*填充CRC16值*/
          length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
-         break;  
-      }
-     
-     default :
-     log_error("protocol err in  func:%d.\r\n",recv_buffer[PROTOCOL_TASK_ADU_FUNC_OFFSET]); 
-     goto protocol_parse_start;
+       }
+       /*如果是关锁*/
+       if(recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET] == PROTOCOL_TASK_CMD_LOCK){
+         rc = protocol_task_lock(&status);
+         if(rc != 0){
+         log_error("protocol task lock err.\r\n");
+         goto protocol_parse_start;
+         }
+         if(status == DOOR_LOCK_TASK_LOCK_SUCCESS){
+         result = PROTOCOL_TASK_LOCK_SUCCESS;
+         }else{
+         result = PROTOCOL_TASK_LOCK_FAILURE;
+         }
+         /*填充操作结果值*/
+         send_buffer[length_to_write++] = result;
+         /*填充CRC16值*/
+         length_to_write = protocol_task_prepare_crc16(send_buffer,length_to_write); 
+       }       
      break;
-     }
-   }
-   
+     default :
+     log_error("protocol err in internal:%d.\r\n",recv_buffer[PROTOCOL_TASK_CMD_CODE_OFFSET]); 
+     goto protocol_parse_start;
+     }                     
+    }
+  
    if(length_to_read != 0){   
    timeout = PROTOCOL_TASK_CHARACTER_TIMEOUT_VALUE; 
    }       
-  }  
+   }
  
     /*解析完毕 回应操作结果*/  
-    /*使能485发送*/
-    bsp_485_enable_write();
     write_length = serial_write(protocol_serial_handle,send_buffer,length_to_write);
     for (int i=0; i < write_length; i++){
-    log_array("[%2X]\r\n", send_buffer[i]);
+    log_debug("[%2X]\r\n", send_buffer[i]);
     }
     if(write_length != length_to_write){
     log_error("protocol err in  serial buffer write. expect:%d write:%d.\r\n",length_to_write,write_length); 
@@ -589,5 +628,5 @@ protocol_parse_start:
     goto protocol_parse_start;  
     }
      
-}
+ }
 }

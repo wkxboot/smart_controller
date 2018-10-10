@@ -16,56 +16,54 @@ TASKS_BEGIN
 extern EventGroupHandle_t tasks_sync_evt_group_hdl;
 void tasks_init();
 
-#define  TASKS_SYNC_EVENT_ADC_TASK_RDY              (1<<0)
-#define  TASKS_SYNC_EVENT_TEMPERATURE_TASK_RDY      (1<<1)
-#define  TASKS_SYNC_EVENT_PRESSURE_TASK_RDY         (1<<2)
-#define  TASKS_SYNC_EVENT_COMPRESSOR_TASK_RDY       (1<<3)
-#define  TASKS_SYNC_EVENT_ALARM_TASK_RDY            (1<<4)
-#define  TASKS_SYNC_EVENT_DISPLAY_TASK_RDY          (1<<5)
-#define  TASKS_SYNC_EVENT_ALL_TASKS_RDY             ((1<<6)-1)
+
+#define  TASKS_SYNC_EVENT_SCALE_TASK_RDY            (1<<0)
+#define  TASKS_SYNC_EVENT_PROTOCOL_TASK_RDY         (1<<1)
+#define  TASKS_SYNC_EVENT_DOOR_LOCK_TASK_RDY        (1<<2)
+#define  TASKS_SYNC_EVENT_TEMPERATURE_TASK_RDY      (1<<3)
+#define  TASKS_SYNC_EVENT_COMPRESSOR_TASK_RDY       (1<<4)
+#define  TASKS_SYNC_EVENT_ADC_TASK_RDY              (1<<5)
+#define  TASKS_SYNC_EVENT_ALL_TASKS_RDY             ((1<<3)-1)
 
 
 typedef enum
 {
 T_ADC_COMPLETED=0,
-P_ADC_COMPLETED,
-REQ_PRESSURE_VALUE,
-REQ_TEMPERATURE_VALUE,
-REQ_CAPACITY_VALUE,
-REQ_COMM_WIFI_STATUS,
-REQ_COMM_4G_STATUS,
-RESPONSE_TEMPERATURE_VALUE,
-RESPONSE_PRESSURE_VALUE,
-RESPONSE_CAPACITY_VALUE,
-RESPONSE_COMM_WIFI_STATUS,
-RESPONSE_COMM_4G_STATUS,
-BROADCAST_TEMPERATURE_VALUE,
-BROADCAST_PRESSURE_VALUE,
-BROADCAST_CAPACITY_VALUE,
-BROADCAST_COMM_WIFI_STATUS,
-BROADCAST_COMM_4G_STATUS,
-ALARM_SW_SHORT_PRESS,
-ALARM_SW_LONG_PRESS,
-DISPLAY_FLASH_TIMER,
-COMPRESSOR_START,
-COMPRESSOR_STOP
+REQ_NET_WEIGHT,
+REQ_DOOR_STATUS,
+REQ_LOCK_STATUS,
+REQ_TEMPERATURE,
+REQ_MANUFACTURE_ID,
+REQ_SCALE_CNT,
+REQ_UNLOCK,
+REQ_LOCK,
+
+RESPONSE_NET_WEIGHT,
+RESPONSE_DOOR_STATUS,
+RESPONSE_LOCK_STATUS,
+RESPONSE_TEMPERATURE,
+RESPONSE_MANUFACTURE_ID,
+RESPONSE_SCALE_CNT,
+RESPONSE_LOCK_RESULT,
+RESPONSE_UNLOCK_RESULT,
 }task_msg_type_t;
 
 
 typedef struct
 {
 task_msg_type_t type;
-union
+struct
 {
-uint8_t        pressure;
-uint8_t        capacity;
-uint8_t        comm_wifi;
-uint8_t        comm_4g;
-int16_t        temperature;
+int16_t        *net_weight;
+uint8_t        door_status;
+uint8_t        lock_status;
+int8_t         temperature;
+uint8_t        scale_cnt;
+uint8_t        unlock_result;
+uint8_t        lock_result;
+uint16_t       manufacture_id;
 uint16_t       adc;
-uint32_t       reserved;
 };
-osMessageQId   req_q_id;
 }task_msg_t;
 
 
