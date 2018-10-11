@@ -2136,6 +2136,9 @@
             <group>
                 <name>tasks</name>
                 <file>
+                    <name>$PROJ_DIR$\..\user\tasks\adc_task.c</name>
+                </file>
+                <file>
                     <name>$PROJ_DIR$\..\user\tasks\cpu_task.c</name>
                 </file>
                 <file>
@@ -2149,6 +2152,9 @@
                 </file>
                 <file>
                     <name>$PROJ_DIR$\..\user\tasks\tasks_init.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\user\tasks\temperature_task.c</name>
                 </file>
             </group>
         </group>

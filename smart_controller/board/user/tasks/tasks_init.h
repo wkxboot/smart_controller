@@ -21,9 +21,9 @@ void tasks_init();
 #define  TASKS_SYNC_EVENT_PROTOCOL_TASK_RDY         (1<<1)
 #define  TASKS_SYNC_EVENT_DOOR_LOCK_TASK_RDY        (1<<2)
 #define  TASKS_SYNC_EVENT_TEMPERATURE_TASK_RDY      (1<<3)
-#define  TASKS_SYNC_EVENT_COMPRESSOR_TASK_RDY       (1<<4)
-#define  TASKS_SYNC_EVENT_ADC_TASK_RDY              (1<<5)
-#define  TASKS_SYNC_EVENT_ALL_TASKS_RDY             ((1<<3)-1)
+#define  TASKS_SYNC_EVENT_ADC_TASK_RDY              (1<<4)
+#define  TASKS_SYNC_EVENT_COMPRESSOR_TASK_RDY       (1<<5)
+#define  TASKS_SYNC_EVENT_ALL_TASKS_RDY             ((1<<5)-1)
 
 
 typedef enum
@@ -37,11 +37,11 @@ REQ_MANUFACTURE_ID,
 REQ_SCALE_CNT,
 REQ_UNLOCK,
 REQ_LOCK,
-
+BROADCAST_TEMPERATURE,
+RESPONSE_TEMPERATURE,
 RESPONSE_NET_WEIGHT,
 RESPONSE_DOOR_STATUS,
 RESPONSE_LOCK_STATUS,
-RESPONSE_TEMPERATURE,
 RESPONSE_MANUFACTURE_ID,
 RESPONSE_SCALE_CNT,
 RESPONSE_LOCK_RESULT,
@@ -52,7 +52,7 @@ RESPONSE_UNLOCK_RESULT,
 typedef struct
 {
 task_msg_type_t type;
-struct
+union
 {
 int16_t        *net_weight;
 uint8_t        door_status;
@@ -63,6 +63,8 @@ uint8_t        unlock_result;
 uint8_t        lock_result;
 uint16_t       manufacture_id;
 uint16_t       adc;
+osMessageQId   req_q_id;
+uint32_t       reserved;
 };
 }task_msg_t;
 

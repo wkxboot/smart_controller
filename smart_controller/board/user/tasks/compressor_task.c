@@ -186,7 +186,7 @@ static void compressor_pwr_turn_off()
 static void compressor_task_req_temperature()
 {
    osStatus status;
-   t_msg.type=REQ_TEMPERATURE_VALUE; 
+   t_msg.type=REQ_TEMPERATURE; 
    t_msg.req_q_id = compressor_task_msg_q_id;
    status = osMessagePut(temperature_task_msg_q_id,(uint32_t)&t_msg,COMPRESSOR_TASK_PUT_MSG_TIMEOUT);
    if(status !=osOK){
@@ -238,7 +238,7 @@ void compressor_task(void const *argument)
   
   ptr_msg =(task_msg_t*)os_msg.value.v;
    /*温度消息处理*/
-  if(ptr_msg->type == RESPONSE_TEMPERATURE_VALUE ||ptr_msg->type == BROADCAST_TEMPERATURE_VALUE){ 
+  if(ptr_msg->type == RESPONSE_TEMPERATURE ||ptr_msg->type == BROADCAST_TEMPERATURE){ 
   t=ptr_msg->temperature;   
   if(t == TEMPERATURE_ERR_VALUE_SENSOR    ||\
      t == TEMPERATURE_ERR_VALUE_OVER_HIGH ||\

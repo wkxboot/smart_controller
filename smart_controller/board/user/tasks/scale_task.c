@@ -114,7 +114,7 @@ void scale_task(void const * argument)
  int16_t  net_weight[PROTOCOL_TASK_CMD_SCALE_CNT];
  
  uint8_t recv_buffer[SCALE_TASK_FRAME_SIZE_MAX];
- uint8_t send_buffer[SCALE_TASK_FRAME_SIZE_MAX];
+ //uint8_t send_buffer[SCALE_TASK_FRAME_SIZE_MAX];
  
  osMessageQDef(scale_task_msg_q,2,uint32_t);
  scale_task_msg_q_id = osMessageCreate(osMessageQ(scale_task_msg_q),scale_task_hdl);
@@ -134,7 +134,7 @@ void scale_task(void const * argument)
  log_assert(rc == 0); 
 
  /*等待任务同步*/
- xEventGroupSync(tasks_sync_evt_group_hdl,TASKS_SYNC_EVENT_PROTOCOL_TASK_RDY,TASKS_SYNC_EVENT_ALL_TASKS_RDY,osWaitForever);
+ xEventGroupSync(tasks_sync_evt_group_hdl,TASKS_SYNC_EVENT_SCALE_TASK_RDY,TASKS_SYNC_EVENT_ALL_TASKS_RDY,osWaitForever);
  log_debug("scale task sync ok.\r\n");
  
  while(1){
@@ -149,11 +149,11 @@ restart:
    
    write_length = serial_write(scale_serial_handle,req_net_weight,length_to_write);
    for (int i=0; i < write_length; i++){
-   log_debug("[%2X]\r\n", send_buffer[i]);
+   log_debug("[%2X]\r\n", req_net_weight[i]);
    }
    if(write_length != length_to_write){
    log_error("scale err in  serial buffer write. expect:%d write:%d.\r\n",length_to_write,write_length); 
-   continue;      
+   continue;    
    } 
    remain_length = serial_complete(scale_serial_handle,SCALE_TASK_SEND_TIMEOUT_VALUE);
    if(remain_length != 0){
@@ -194,7 +194,7 @@ restart:
   
  /*正确接收完成*/
   crc_calculated = protocol_task_crc16(recv_buffer + 1,SCALE_TASK_RESPONSE_NET_WEIGHT_LEN - 3);
-  crc_received = recv_buffer[SCALE_TASK_RESPONSE_NET_WEIGHT_LEN-2] << 8 |recv_buffer[SCALE_TASK_RESPONSE_NET_WEIGHT_LEN-1];
+  crc_received = recv_buffer[SCALE_TASK_RESPONSE_NET_WEIGHT_LEN-1] << 8 |recv_buffer[SCALE_TASK_RESPONSE_NET_WEIGHT_LEN-2];
   if(crc_calculated != crc_received ){
   log_error("scale recv crc invalid.recv:%d.calculate:%d.\r\n",crc_received,crc_calculated);
   continue;

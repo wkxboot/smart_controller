@@ -11,9 +11,7 @@ osThreadId   temperature_task_hdl;
 osMessageQId temperature_task_msg_q_id;
 
 static task_msg_t *ptr_msg;
-static task_msg_t  a_msg;
-static task_msg_t  c_msg;
-static task_msg_t  d_msg;
+//static task_msg_t  c_msg;
 static task_msg_t  response_msg;
 
 /*温度传感器型号：LAT5061G3839G B值：3839K*/
@@ -167,35 +165,23 @@ void temperature_task(void const *argument)
    }
    }
    
+   /*
    if(temperature.changed == TRUE){
    log_debug("teperature changed dir:%d value:%d C delta_time:%d ms.\r\n",temperature.dir,temperature.value,delta_time);
    temperature.changed=FALSE;
-   
-   a_msg.type = BROADCAST_TEMPERATURE_VALUE;
-   a_msg.temperature= temperature.value;
-   status = osMessagePut(alarm_task_msg_q_id,(uint32_t)&a_msg,TEMPERATURE_TASK_PUT_MSG_TIMEOUT);
-   if(status !=osOK){
-   log_error("put alarm broadcast t msg error:%d\r\n",status); 
-   }
-   
-   c_msg.type = BROADCAST_TEMPERATURE_VALUE;
+      
+   c_msg.type = BROADCAST_TEMPERATURE;
    c_msg.temperature= temperature.value;
    status = osMessagePut(compressor_task_msg_q_id,(uint32_t)&c_msg,TEMPERATURE_TASK_PUT_MSG_TIMEOUT);
    if(status !=osOK){
    log_error("put compressor broadcast t msg error:%d\r\n",status); 
+   }  
    }
-   
-   d_msg.type = BROADCAST_TEMPERATURE_VALUE;
-   d_msg.temperature =  temperature.value;
-   status = osMessagePut(display_task_msg_q_id,(uint32_t)&d_msg,TEMPERATURE_TASK_PUT_MSG_TIMEOUT);
-   if(status !=osOK){
-   log_error("put display broadcast t msg error:%d\r\n",status); 
-   }
-   }
+  */
   }
   /*主动请求温度消息处理*/
-  if(ptr_msg->type == REQ_TEMPERATURE_VALUE){
-   response_msg.type = RESPONSE_TEMPERATURE_VALUE;
+  if(ptr_msg->type == REQ_TEMPERATURE){
+   response_msg.type = RESPONSE_TEMPERATURE;
    response_msg.temperature= temperature.value;
    status = osMessagePut(ptr_msg->req_q_id,(uint32_t)&response_msg,TEMPERATURE_TASK_PUT_MSG_TIMEOUT);
    if(status !=osOK){

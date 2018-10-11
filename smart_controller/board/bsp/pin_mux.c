@@ -38,8 +38,9 @@ BOARD_InitPins:
 - pin_list:
   - {pin_num: '57', peripheral: FLEXCOMM2, signal: RXD_SDA_MOSI, pin_signal: PIO1_24/FC2_RXD_SDA_MOSI/SCT0_OUT1/FC3_SSEL3/EMC_A(12)}
   - {pin_num: '59', peripheral: FLEXCOMM2, signal: TXD_SCL_MISO, pin_signal: PIO1_25/FC2_TXD_SCL_MISO/SCT0_OUT2/UTICK_CAP0/EMC_A(13)}
-  - {pin_num: '94', peripheral: FLEXCOMM1, signal: TXD_SCL_MISO, pin_signal: PIO1_11/ENET_TX_EN/FC1_TXD_SCL_MISO/CTIMER1_CAP1/USB0_VBUS/EMC_CLK(0)}
-  - {pin_num: '41', peripheral: FLEXCOMM1, signal: RXD_SDA_MOSI, pin_signal: PIO1_10/ENET_TXD1/FC1_RXD_SDA_MOSI/CTIMER1_MAT0/SCT0_OUT3/EMC_RASN}
+  - {pin_num: '17', peripheral: FLEXCOMM4, signal: TXD_SCL_MISO, pin_signal: PIO1_20/FC7_RTS_SCL_SSEL1/CTIMER3_CAP2/FC4_TXD_SCL_MISO/EMC_D(9)}
+  - {pin_num: '37', peripheral: FLEXCOMM4, signal: RXD_SDA_MOSI, pin_signal: PIO1_21/FC7_CTS_SDA_SSEL0/CTIMER3_MAT2/FC4_RXD_SDA_MOSI/EMC_D(10)}
+  - {pin_num: '23', peripheral: ADC0, signal: 'CH, 0', pin_signal: PIO0_10/FC6_SCK/CTIMER2_CAP2/CTIMER2_MAT0/FC1_TXD_SCL_MISO/SWO/ADC0_0, mode: pullDown, open_drain: disabled}
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
  */
 /* clang-format on */
@@ -56,29 +57,51 @@ void BOARD_InitPins(void)
     /* Enables the clock for the IOCON block. 0 = Disable; 1 = Enable.: 0x01u */
     CLOCK_EnableClock(kCLOCK_Iocon);
 
-    IOCON->PIO[1][10] = ((IOCON->PIO[1][10] &
+    IOCON->PIO[0][10] = ((IOCON->PIO[0][10] &
+                          /* Mask bits to zero which are setting */
+                          (~(IOCON_PIO_FUNC_MASK | IOCON_PIO_MODE_MASK | IOCON_PIO_DIGIMODE_MASK | IOCON_PIO_OD_MASK)))
+
+                         /* Selects pin function.
+                          * : PORT010 (pin 23) is configured as ADC0_0. */
+                         | IOCON_PIO_FUNC(PIO010_FUNC_ALT0)
+
+                         /* Selects function mode (on-chip pull-up/pull-down resistor control).
+                          * : Pull-down.
+                          * Pull-down resistor enabled. */
+                         | IOCON_PIO_MODE(PIO010_MODE_PULL_DOWN)
+
+                         /* Select Analog/Digital mode.
+                          * : Analog mode. */
+                         | IOCON_PIO_DIGIMODE(PIO010_DIGIMODE_ANALOG)
+
+                         /* Controls open-drain mode.
+                          * : Normal.
+                          * Normal push-pull output. */
+                         | IOCON_PIO_OD(PIO010_OD_NORMAL));
+
+    IOCON->PIO[1][20] = ((IOCON->PIO[1][20] &
                           /* Mask bits to zero which are setting */
                           (~(IOCON_PIO_FUNC_MASK | IOCON_PIO_DIGIMODE_MASK)))
 
                          /* Selects pin function.
-                          * : PORT110 (pin 41) is configured as FC1_RXD_SDA_MOSI. */
-                         | IOCON_PIO_FUNC(PIO110_FUNC_ALT2)
+                          * : PORT120 (pin 17) is configured as FC4_TXD_SCL_MISO. */
+                         | IOCON_PIO_FUNC(PIO120_FUNC_ALT5)
 
                          /* Select Analog/Digital mode.
                           * : Digital mode. */
-                         | IOCON_PIO_DIGIMODE(PIO110_DIGIMODE_DIGITAL));
+                         | IOCON_PIO_DIGIMODE(PIO120_DIGIMODE_DIGITAL));
 
-    IOCON->PIO[1][11] = ((IOCON->PIO[1][11] &
+    IOCON->PIO[1][21] = ((IOCON->PIO[1][21] &
                           /* Mask bits to zero which are setting */
                           (~(IOCON_PIO_FUNC_MASK | IOCON_PIO_DIGIMODE_MASK)))
 
                          /* Selects pin function.
-                          * : PORT111 (pin 94) is configured as FC1_TXD_SCL_MISO. */
-                         | IOCON_PIO_FUNC(PIO111_FUNC_ALT2)
+                          * : PORT121 (pin 37) is configured as FC4_RXD_SDA_MOSI. */
+                         | IOCON_PIO_FUNC(PIO121_FUNC_ALT5)
 
                          /* Select Analog/Digital mode.
                           * : Digital mode. */
-                         | IOCON_PIO_DIGIMODE(PIO111_DIGIMODE_DIGITAL));
+                         | IOCON_PIO_DIGIMODE(PIO121_DIGIMODE_DIGITAL));
 
     IOCON->PIO[1][24] = ((IOCON->PIO[1][24] &
                           /* Mask bits to zero which are setting */

@@ -9,7 +9,7 @@ void scale_task(void const * argument);
 
 
 #define  SCALE_TASK_SCALE_CNT                 4
-#define  SCALE_TASK_MANUFACTURE_ID            0x1101
+#define  SCALE_TASK_MANUFACTURE_ID            0x1100
 
 
 #define  SCALE_TASK_FRAME_SIZE_MAX            32
@@ -27,17 +27,7 @@ void scale_task(void const * argument);
 #define  SCALE_TASK_CHARACTER_TIMEOUT_VALUE       3
 #define  SCALE_TASK_SEND_TIMEOUT_VALUE            10
 
-#define  DOOR_LOCK_TASK_DOOR_OPEN_STATUS      1
-#define  DOOR_LOCK_TASK_DOOR_CLOSE_STATUS     2
 
-#define  DOOR_LOCK_TASK_LOCK_OPEN_STATUS      3
-#define  DOOR_LOCK_TASK_LOCK_CLOSE_STATUS     4
-
-#define  DOOR_LOCK_TASK_UNLOCK_SUCCESS        5
-#define  DOOR_LOCK_TASK_UNLOCK_FAILURE        6
-
-#define  DOOR_LOCK_TASK_LOCK_SUCCESS          7
-#define  DOOR_LOCK_TASK_LOCK_FAILURE          8
 
 
 

@@ -121,7 +121,7 @@ static int protocol_task_get_net_weight(int16_t *net_weight)
  int        rc = -1;
  
  scale_msg.type = REQ_NET_WEIGHT;
- status = osMessagePut(protocol_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
+ status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
  if(status != osOK){
   return rc;
  }
@@ -151,7 +151,7 @@ static int protocol_task_get_door_status(uint8_t *door_status)
  int        rc = -1;
  
  door_lock_msg.type = REQ_DOOR_STATUS;
- status = osMessagePut(scale_task_msg_q_id,(uint32_t)&door_lock_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
+ status = osMessagePut(door_lock_task_msg_q_id,(uint32_t)&door_lock_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
  if(status != osOK){
   return rc;
  }
@@ -176,7 +176,7 @@ static int protocol_task_get_lock_status(uint8_t *lock_status)
  int        rc = -1;
  
  scale_msg.type = REQ_LOCK_STATUS;
- status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
+ status = osMessagePut(door_lock_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
  if(status != osOK){
   return rc;
  }
@@ -450,7 +450,7 @@ protocol_parse_start:
      /*接收完成了全部的数据*/
      case PROTOCOL_TASK_CRC_STEP:
        crc_calculated = protocol_task_crc16(recv_buffer,read_length - PROTOCOL_TASK_CMD_CRC_LEN);
-       crc_received = recv_buffer[read_length-1]<< 8 | recv_buffer[read_length-2];
+       crc_received = recv_buffer[read_length-2]<< 8 | recv_buffer[read_length-1];
        if(crc_calculated != crc_received){
           log_error("protocol err in crc.recv:%d calculate:%d.\r\n",crc_received,crc_calculated);
           goto protocol_parse_start;

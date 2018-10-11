@@ -36,28 +36,95 @@
 #include "fsl_common.h"
 #include "clock_config.h"
 #include "board.h"
+#include "pin_mux.h"
 
-#define  SYS_LED_GPIO   GPIO
-#define  SYS_LED_PORT   0
-#define  SYS_LED_PIN    7    
+static void bsp_sys_led_pin_init()
+{
+  gpio_pin_config_t pin;
+  pin.pinDirection = kGPIO_DigitalOutput;
+  pin.outputLogic = 1;
+  GPIO_PortInit(SYS_LED_GPIO, SYS_LED_PORT);
+  GPIO_PinInit(SYS_LED_GPIO,SYS_LED_PORT,SYS_LED_PIN,&pin);
+}
+
+static void bsp_lock_ctrl_pin_init()
+{
+  gpio_pin_config_t pin;
+  pin.pinDirection = kGPIO_DigitalOutput;
+  pin.outputLogic = 0;
+  GPIO_PortInit(LOCK_CTRL_GPIO, LOCK_CTRL_PORT);
+  GPIO_PinInit(LOCK_CTRL_GPIO,LOCK_CTRL_PORT,LOCK_CTRL_PIN,&pin);
+}
+
+static void bsp_lock_sensor_pin_init()
+{
+  gpio_pin_config_t pin;
+  pin.pinDirection = kGPIO_DigitalInput;
+  pin.outputLogic = 1;
+  GPIO_PortInit(LOCK_SENSOR_GPIO, LOCK_SENSOR_PORT);
+  GPIO_PinInit(LOCK_SENSOR_GPIO,LOCK_SENSOR_PORT,LOCK_SENSOR_PIN,&pin);
+}
+
+static void bsp_door_sensor_pin_init()
+{
+  gpio_pin_config_t pin;
+  pin.pinDirection = kGPIO_DigitalInput;
+  pin.outputLogic = 1;
+  GPIO_PortInit(DOOR_SENSOR_GPIO, DOOR_SENSOR_PORT);
+  GPIO_PinInit(DOOR_SENSOR_GPIO,DOOR_SENSOR_PORT,DOOR_SENSOR_PIN,&pin);
+}
+
+void bsp_lock_ctrl_open()
+{
+ GPIO_PortSet(LOCK_CTRL_GPIO,LOCK_CTRL_PORT,(1U<<LOCK_CTRL_PIN));
+}
+
+void bsp_lock_ctrl_close()
+{
+ GPIO_PortClear( LOCK_CTRL_GPIO,LOCK_CTRL_PORT,(1U<<LOCK_CTRL_PIN));
+}
+
+uint8_t bsp_lock_sensor_status()
+{
+ uint8_t pin_level,status;
+ pin_level = GPIO_PinRead(LOCK_SENSOR_GPIO,LOCK_SENSOR_PORT,LOCK_SENSOR_PIN);
+ if(pin_level == BSP_LOCK_OPEN_LEVEL){
+   status = BSP_LOCK_STATUS_OPEN;
+ }else{
+   status = BSP_LOCK_STATUS_CLOSE;
+ }
+ return status;
+}
+ 
+uint8_t bsp_door_sensor_status()
+{
+ uint8_t pin_level,status;
+ pin_level = GPIO_PinRead(DOOR_SENSOR_GPIO,DOOR_SENSOR_PORT,DOOR_SENSOR_PIN);
+ if(pin_level == BSP_DOOR_OPEN_LEVEL){
+   status = BSP_DOOR_STATUS_OPEN;
+ }else{
+   status = BSP_DOOR_STATUS_CLOSE;
+ }
+ return status;
+}
 
 
+void bsp_sys_led_toggle()
+{
+ GPIO_PortToggle(SYS_LED_GPIO,SYS_LED_PORT,(1<<SYS_LED_PIN));
+}
 
 int bsp_board_init()
 {
+bsp_sys_led_pin_init();
+bsp_lock_ctrl_pin_init();
+bsp_lock_sensor_pin_init();
+bsp_door_sensor_pin_init();
 
-gpio_pin_config_t sys_led_pin;
-sys_led_pin.pinDirection = kGPIO_DigitalOutput;
-sys_led_pin.outputLogic = 1;
-GPIO_PortInit(SYS_LED_GPIO, SYS_LED_PORT);
-GPIO_PinInit(SYS_LED_GPIO,SYS_LED_PORT,SYS_LED_PIN,&sys_led_pin);
-
+BOARD_InitBootPins();
 BOARD_BootClockPLL180M();
 
 return 0;
 }
 
-void bsp_sys_led_toggle()
-{
-  GPIO_PortToggle(SYS_LED_GPIO,SYS_LED_PORT,(1<<SYS_LED_PIN));
-}
+

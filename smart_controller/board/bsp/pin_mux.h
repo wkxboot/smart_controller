@@ -25,14 +25,46 @@ extern "C" {
  */
 void BOARD_InitBootPins(void);
 
-#define PIO110_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
-#define PIO110_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
-#define PIO111_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
-#define PIO111_FUNC_ALT2 0x02u        /*!<@brief Selects pin function.: Alternative connection 2. */
-#define PIO124_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
-#define PIO124_FUNC_ALT1 0x01u        /*!<@brief Selects pin function.: Alternative connection 1. */
-#define PIO125_DIGIMODE_DIGITAL 0x01u /*!<@brief Select Analog/Digital mode.: Digital mode. */
-#define PIO125_FUNC_ALT1 0x01u        /*!<@brief Selects pin function.: Alternative connection 1. */
+/*!
+ * @brief Select Analog/Digital mode.: Analog mode. */
+#define PIO010_DIGIMODE_ANALOG 0x00u
+/*!
+ * @brief Selects pin function.: Alternative connection 0. */
+#define PIO010_FUNC_ALT0 0x00u
+/*!
+ * @brief
+ * Selects function mode (on-chip pull-up/pull-down resistor control).
+ * : Pull-down.
+ * Pull-down resistor enabled.
+ */
+#define PIO010_MODE_PULL_DOWN 0x01u
+/*!
+ * @brief Controls open-drain mode.: Normal. Normal push-pull output */
+#define PIO010_OD_NORMAL 0x00u
+/*!
+ * @brief Select Analog/Digital mode.: Digital mode. */
+#define PIO120_DIGIMODE_DIGITAL 0x01u
+/*!
+ * @brief Selects pin function.: Alternative connection 5. */
+#define PIO120_FUNC_ALT5 0x05u
+/*!
+ * @brief Select Analog/Digital mode.: Digital mode. */
+#define PIO121_DIGIMODE_DIGITAL 0x01u
+/*!
+ * @brief Selects pin function.: Alternative connection 5. */
+#define PIO121_FUNC_ALT5 0x05u
+/*!
+ * @brief Select Analog/Digital mode.: Digital mode. */
+#define PIO124_DIGIMODE_DIGITAL 0x01u
+/*!
+ * @brief Selects pin function.: Alternative connection 1. */
+#define PIO124_FUNC_ALT1 0x01u
+/*!
+ * @brief Select Analog/Digital mode.: Digital mode. */
+#define PIO125_DIGIMODE_DIGITAL 0x01u
+/*!
+ * @brief Selects pin function.: Alternative connection 1. */
+#define PIO125_FUNC_ALT1 0x01u
 
 /*!
  * @brief Configures pin routing and optionally pin electrical features.
