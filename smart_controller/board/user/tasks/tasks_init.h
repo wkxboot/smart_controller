@@ -22,8 +22,9 @@ void tasks_init();
 #define  TASKS_SYNC_EVENT_DOOR_LOCK_TASK_RDY        (1<<2)
 #define  TASKS_SYNC_EVENT_TEMPERATURE_TASK_RDY      (1<<3)
 #define  TASKS_SYNC_EVENT_ADC_TASK_RDY              (1<<4)
-#define  TASKS_SYNC_EVENT_COMPRESSOR_TASK_RDY       (1<<5)
-#define  TASKS_SYNC_EVENT_ALL_TASKS_RDY             ((1<<5)-1)
+#define  TASKS_SYNC_EVENT_CPU_TASK_RDY              (1<<5)
+#define  TASKS_SYNC_EVENT_COMPRESSOR_TASK_RDY       (1<<6)
+#define  TASKS_SYNC_EVENT_ALL_TASKS_RDY             ((1<<6)-1)
 
 
 typedef enum

@@ -488,7 +488,7 @@ protocol_parse_start:
             } 
             
           }else if(recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET] >= 1 && 
-                   recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET] <= PROTOCOL_TASK_CMD_SCALE_CNT){     
+                   recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET] <= SCALE_TASK_SCALE_CNT){     
           send_buffer[length_to_write++] = net_weight[recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET]] >> 8;
           send_buffer[length_to_write++] = net_weight[recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET]] & 0xFF;
           }else{

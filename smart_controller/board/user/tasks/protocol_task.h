@@ -6,7 +6,6 @@ extern osThreadId   protocol_task_hdl;
 extern osMessageQId protocol_task_msg_q_id;
 void protocol_task(void const * argument);
 
-#define  PROTOCOL_TASK_START_DELAY_TIME_VALUE      1000
 
 #define  PROTOCOL_TASK_SERIAL_PORT                 4
 #define  PROTOCOL_TASK_SERIAL_BAUDRATES            115200
@@ -17,8 +16,6 @@ void protocol_task(void const * argument);
 
 #define  PROTOCOL_TASK_RX_BUFFER_SIZE              64
 #define  PROTOCOL_TASK_TX_BUFFER_SIZE              64
-
-#define  PROTOCOL_TASK_RESPONSE_TIMEOUT_VALUE      800
 
 
 /*协议定义开始*/
