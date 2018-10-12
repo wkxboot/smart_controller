@@ -23,7 +23,7 @@ void scale_task(void const * argument);
 
 #define  SCALE_TASK_MSG_WAIT_TIMEOUT_VALUE        osWaitForever
 #define  SCALE_TASK_MSG_PUT_TIMEOUT_VALUE         5
-#define  SCALE_TASK_REQ_NET_WEIGHT_TIMEOUT_VALUE  700
+#define  SCALE_TASK_REQ_NET_WEIGHT_TIMEOUT_VALUE  800
 #define  SCALE_TASK_CHARACTER_TIMEOUT_VALUE       3
 #define  SCALE_TASK_SEND_TIMEOUT_VALUE            10
 

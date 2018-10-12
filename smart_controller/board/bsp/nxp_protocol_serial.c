@@ -92,7 +92,7 @@ int nxp_protocol_serial_init(uint8_t port,uint32_t bauds,uint8_t data_bit,uint8_
   if (status != kStatus_Success){
     return -1;
   } 
-
+  NVIC_SetPriority(serial_irq_num, 3);
   EnableIRQ(serial_irq_num);
   return 0;
 }
@@ -104,46 +104,46 @@ void nxp_protocol_serial_enable_txe_int()
 {
  //USART_EnableInterrupts(serial,USART_INTENSET_TXRDYEN_MASK);
  /* Enable TX interrupt. */
- USART_EnableInterrupts(serial, kUSART_TxLevelInterruptEnable | kUSART_TxErrorInterruptEnable);
+ USART_EnableInterrupts(serial, kUSART_TxLevelInterruptEnable );
 }
 void nxp_protocol_serial_disable_txe_int()
 {
   //USART_DisableInterrupts(serial,USART_INTENSET_TXRDYEN_MASK); 
   /* Disable TX interrupt. */
-  USART_DisableInterrupts(serial, kUSART_TxLevelInterruptEnable | kUSART_TxErrorInterruptEnable);
+  USART_DisableInterrupts(serial, kUSART_TxLevelInterruptEnable );
 }
 
 void nxp_protocol_serial_enable_rxne_int()
 {
  //USART_EnableInterrupts(serial,USART_INTENSET_RXRDYEN_MASK);
  /* Enable RX interrupt. */
- USART_EnableInterrupts(serial, kUSART_RxLevelInterruptEnable | kUSART_RxErrorInterruptEnable);
+ USART_EnableInterrupts(serial, kUSART_RxLevelInterruptEnable );
 }
 void nxp_protocol_serial_disable_rxne_int()
 {
  //USART_DisableInterrupts(serial,USART_INTENSET_RXRDYEN_MASK);
   /* Disable RX interrupt. */
-  USART_DisableInterrupts(serial, kUSART_RxLevelInterruptEnable | kUSART_RxErrorInterruptEnable);
+  USART_DisableInterrupts(serial, kUSART_RxLevelInterruptEnable);
 }
 
 
 void nxp_protocol_serial_isr()
 {
   int result;
-  uint32_t tmp_it_source = 0;
+  uint32_t tmp_it_source = 0,tmp_flag = 0;
   uint8_t  send_byte,recv_byte;
   
-  //tmp_flag = USART_GetEnabledInterrupts(serial);
+    tmp_flag = USART_GetEnabledInterrupts(serial);
     tmp_it_source =USART_GetStatusFlags(serial);
   
  /*接收中断处理*/
-  if(tmp_it_source & kUSART_RxFifoNotEmptyFlag){
+  if((tmp_it_source & kUSART_RxFifoNotEmptyFlag) && (tmp_flag & kUSART_RxLevelInterruptEnable)){
       recv_byte=USART_ReadByte(serial);
       isr_serial_put_byte_from_recv(protocol_serial_handle,recv_byte);
 
   }
  /*发送中断处理*/
-  if(tmp_it_source & kUSART_TxFifoEmptyFlag){
+  if((tmp_it_source & kUSART_TxFifoEmptyFlag) && (tmp_flag & kUSART_TxLevelInterruptEnable)){
   	 result =isr_serial_get_byte_to_send(protocol_serial_handle,&send_byte);
     if(result == 1) {
      USART_WriteByte(serial, send_byte);

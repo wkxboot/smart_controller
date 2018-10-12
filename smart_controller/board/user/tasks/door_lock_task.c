@@ -16,8 +16,8 @@ osMessageQId door_lock_task_msg_q_id;
 osTimerId    door_lock_sensor_timer_id;
 
 static task_msg_t protocol_msg;
-static uint8_t door_status,lock_status;
-static uint16_t door_status_stable_time,lock_status_stable_time;
+static volatile uint8_t door_status,lock_status;
+static volatile uint16_t door_status_stable_time,lock_status_stable_time;
 
 
 static void door_lock_sensor_timer_expired(void const *argument);
@@ -103,11 +103,19 @@ void door_lock_task(void const * argument)
  door_lock_sensor_timer_init();
  door_lock_sensor_timer_start();
  
+ osDelay(LOCK_DOOR_TASK_STATUS_STABLE_TIME * 2);
+ /*上电判断门锁状态*/
+ if(door_status == BSP_DOOR_STATUS_OPEN){
+  log_debug("pwr on.unlock.\r\n");
+  bsp_lock_ctrl_open();  
+ }
+ 
  while(1){
  os_msg = osMessageGet(door_lock_task_msg_q_id,DOOR_LOCK_TASK_MSG_WAIT_TIMEOUT_VALUE);
  if(os_msg.status == osEventMessage){
  msg = (task_msg_t *)os_msg.value.v;
  
+/*获取锁状态*/
  if(msg->type == REQ_DOOR_STATUS){   
   protocol_msg.type = RESPONSE_DOOR_STATUS;
   
@@ -124,6 +132,7 @@ void door_lock_task(void const * argument)
   }
  }
  
+ /*获取锁状态*/
  if(msg->type == REQ_LOCK_STATUS){ 
   protocol_msg.type = RESPONSE_LOCK_STATUS;
   
@@ -139,7 +148,7 @@ void door_lock_task(void const * argument)
   log_error("door lock put lock status msg err:%d.\r\n",status);
   }
  }
- 
+  /*开锁*/
  if(msg->type == REQ_UNLOCK){ 
   log_debug("unlock.\r\n");
   bsp_lock_ctrl_open();
@@ -159,7 +168,7 @@ void door_lock_task(void const * argument)
   log_debug("unlock success.\r\n");
   }else{
   protocol_msg.unlock_result = DOOR_LOCK_TASK_UNLOCK_FAILURE;
-  log_debug("unlock fail.\r\n");
+  log_error("unlock fail.\r\n");
   }
   
   status = osMessagePut(protocol_task_msg_q_id,(uint32_t)&protocol_msg,DOOR_LOCK_TASK_PUT_MSG_TIMEOUT_VALUE);
@@ -169,6 +178,7 @@ void door_lock_task(void const * argument)
   
  }
  
+ /*关锁*/
  if(msg->type == REQ_LOCK){  
   log_debug("lock.\r\n");
   bsp_lock_ctrl_close();
@@ -188,7 +198,7 @@ void door_lock_task(void const * argument)
   log_debug("lock success.\r\n");
   }else{
   protocol_msg.unlock_result = DOOR_LOCK_TASK_LOCK_FAILURE;
-  log_debug("lock fail.\r\n");
+  log_error("lock fail.\r\n");
   }
   
   

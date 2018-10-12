@@ -25,7 +25,7 @@ void adc_task(void const * argument);
 #define  ADC_TASK_ADC_ERR_VALUE                (0xFFFF)/*ADC取样错误值*/
 
 
-#define  ADC_TASK_ADC_SAMPLE_MAX               50/*ADC取样次数*/
+#define  ADC_TASK_ADC_SAMPLE_MAX               25/*ADC取样次数*/
 #define  ADC_TASK_TEMPERATURE_IDX              0 /*温度取样序号*/
 #define  ADC_TASK_PRESSURE_IDX                 1 /*压力取样序号*/
 

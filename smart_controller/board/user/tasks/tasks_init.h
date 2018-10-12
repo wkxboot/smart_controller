@@ -37,6 +37,7 @@ REQ_MANUFACTURE_ID,
 REQ_SCALE_CNT,
 REQ_UNLOCK,
 REQ_LOCK,
+REQ_SET_SENSOR,
 BROADCAST_TEMPERATURE,
 RESPONSE_TEMPERATURE,
 RESPONSE_NET_WEIGHT,
@@ -46,6 +47,7 @@ RESPONSE_MANUFACTURE_ID,
 RESPONSE_SCALE_CNT,
 RESPONSE_LOCK_RESULT,
 RESPONSE_UNLOCK_RESULT,
+RESPONSE_SET_SENSOR
 }task_msg_type_t;
 
 
@@ -61,6 +63,7 @@ int8_t         temperature;
 uint8_t        scale_cnt;
 uint8_t        unlock_result;
 uint8_t        lock_result;
+uint8_t        sensor_result;
 uint16_t       manufacture_id;
 uint16_t       adc;
 osMessageQId   req_q_id;
@@ -71,7 +74,7 @@ uint32_t       reserved;
 
 
 #ifndef  NULL
-#define  NULL          (void*)0
+#define  NULL         (void*)0
 #endif
 
 

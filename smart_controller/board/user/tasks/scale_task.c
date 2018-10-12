@@ -14,7 +14,14 @@ extern serial_hal_driver_t scale_serial_driver;
 
 osThreadId   scale_task_hdl;
 osMessageQId scale_task_msg_q_id;
+
 static task_msg_t protocol_msg;
+
+typedef enum
+{
+ SCALE_TASK_ADU_STEP=0,
+ SCALE_TASK_CRC_STEP
+}scale_step_t;
 
 
 /*传感器位置1-4*/
@@ -83,7 +90,7 @@ static const uint8_t table_crc_lo[] = {
     0x43, 0x83, 0x41, 0x81, 0x80, 0x40
 };
 
-static uint16_t protocol_task_crc16(uint8_t *buffer, uint16_t buffer_length)
+static uint16_t scale_task_crc16(uint8_t *buffer, uint16_t buffer_length)
 {
     uint8_t crc_hi = 0xFF; /* high CRC byte initialized */
     uint8_t crc_lo = 0xFF; /* low CRC byte initialized */
@@ -100,21 +107,184 @@ static uint16_t protocol_task_crc16(uint8_t *buffer, uint16_t buffer_length)
 }
 
 
+
+
+#define  SCALE_TASK_SET_SENSOR_TIMEOUT      1100
+#define  SCALE_TASK_GET_NET_WEIGHT_TIMEOUT  800
+
+#define  SCALE_TASK_SEND_TIMEOUT            10
+#define  SCALE_TASK_CHARACTER_TIMEOUT       3
+#define  SCALE_TASK_RECV_BUFFER_SIZE        20
+
+
+#define  SCALE_TASK_REQ_NET_WEIGHT_LEN      7
+#define  SCALE_TASK_SET_SENSOR_LEN          8
+
+#define  SCALE_TASK_SOF_OFFSET              0
+#define  SCALE_TASK_LEN_OFFSET              1
+#define  SCALE_TASK_ADDR_OFFSET             2
+#define  SCALE_TASK_CMD_OFFSET              3
+#define  SCALE_TASK_NET_WEIGHT_OFFSET       5
+
+
+#define  SCALE_TASK_SOF_LEN                     1
+#define  SCALE_TASK_CRC_LEN                     2
+
+#define  SCALE_TASK_SOF_VALUE                   0x05
+#define  SCALE_TASK_ADDR_VALUE                  0x00
+#define  SCALE_TASK_CMD_SET_SENSOR_VALUE        0x00E2
+#define  SCALE_TASK_CMD_GET_NET_WEIGHT_VALUE    0x01E2
+#define  SCALE_TASK_STATUS_OK_VALUE             0x00
+#define  SCALE_TASK_STATUS_ERR_VALUE            0x01
+
+
+
+#define  SCALTE_TASK_SET_SENSOR_FAILURE        0x11
+#define  SCALTE_TASK_SET_SENSOR_SUCCESS        0x22
+
+
+static int scale_task_req(uint8_t *req,uint8_t len,uint16_t timeout)
+{
+   uint16_t length_to_write,write_length,remain_length;
+ 
+   serial_flush(scale_serial_handle);
+   length_to_write = len;
+   write_length = serial_write(scale_serial_handle,req_net_weight,length_to_write);
+   for (int i=0; i < write_length; i++){
+   log_debug("[%2X]\r\n", req_net_weight[i]);
+   }
+   if(write_length != length_to_write){
+   log_error("scale err in  serial buffer write. expect:%d write:%d.\r\n",length_to_write,write_length); 
+   return -1;    
+   } 
+   remain_length = serial_complete(scale_serial_handle,timeout);
+   if(remain_length != 0){
+   log_error("scale err in  serial send timeout.\r\n"); 
+   return -1;
+   }
+   
+   return 0;
+}
+
+static int scale_task_wait_response(uint16_t expect_cmd, uint8_t *response,uint16_t timeout)
+{
+  int rc;
+  uint8_t  length_to_read,read_length;
+  uint16_t crc_calculated,crc_received;
+  uint8_t  step;
+  uint8_t  recv_buffer[SCALE_TASK_RECV_BUFFER_SIZE];
+
+  length_to_read = 2;
+  read_length =0;
+
+  step = SCALE_TASK_ADU_STEP;
+  
+  while(length_to_read != 0){
+  rc = serial_select(scale_serial_handle,timeout);
+  if(rc == -1){
+   log_error("scale select error.\r\n");
+   return -1;
+  }
+  if(rc == 0){
+   log_error("scale select timeout.\r\n");
+   return -1;
+  }
+  
+  rc = serial_read(scale_serial_handle,recv_buffer + read_length,length_to_read);
+  if(rc == -1) {
+   log_error("scale read error.\r\n");
+   return -1;
+  }
+     
+  for (int i=0; i < rc; i++){
+  log_debug("<%2X>\r\n", recv_buffer[read_length + i]);
+  }
+   
+  read_length +=rc;
+  length_to_read -=rc;
+   
+  if(length_to_read == 0){
+     switch(step){
+     /*接收到了协议头和数据长度域*/
+     case SCALE_TASK_ADU_STEP:
+       if(recv_buffer[SCALE_TASK_SOF_OFFSET] == SCALE_TASK_SOF_VALUE){
+        step = SCALE_TASK_CRC_STEP;             
+        length_to_read = recv_buffer[SCALE_TASK_LEN_OFFSET];              
+        
+        if(length_to_read == 0){
+        log_error("scale err in len value:%d.\r\n",recv_buffer[SCALE_TASK_LEN_OFFSET]);
+        return -1;
+        }
+       }else{
+         log_error("scale err in addr value:%d.\r\n",recv_buffer[SCALE_TASK_SOF_OFFSET]);
+        return -1;
+       } 
+                                                                    
+     break;
+     /*接收完成了全部的数据*/
+     case SCALE_TASK_CRC_STEP:
+       crc_calculated = scale_task_crc16(recv_buffer + 1,read_length - SCALE_TASK_CRC_LEN - SCALE_TASK_SOF_LEN);
+       crc_received = recv_buffer[read_length-1]<< 8 | recv_buffer[read_length-2];
+       if(crc_calculated != crc_received){
+          log_error("scale err in crc.recv:%d calculate:%d.\r\n",crc_received,crc_calculated);
+          return -1;
+       }
+       
+       if(recv_buffer[SCALE_TASK_ADDR_OFFSET] != SCALE_TASK_ADDR_VALUE){
+       log_error("scale err in addr:%d.\r\n",recv_buffer[SCALE_TASK_ADDR_OFFSET]);
+       return -1;
+       }
+       
+      if( *(uint16_t*)&recv_buffer[SCALE_TASK_CMD_OFFSET] != expect_cmd){
+        log_error("scale err in response cmd.expect:%d.recv:%d.\r\n",expect_cmd,*(uint16_t*)&recv_buffer[SCALE_TASK_CMD_OFFSET]); 
+        return -1;
+      }
+       /*全部解析正确*/      
+       /*设置传感器的回应*/
+       if( *(uint16_t*)&recv_buffer[SCALE_TASK_CMD_OFFSET] == SCALE_TASK_CMD_SET_SENSOR_VALUE){
+        if(recv_buffer[read_length-3] != SCALE_TASK_STATUS_OK_VALUE){
+        log_error("scale err in status:%d.\r\n",recv_buffer[read_length-3]);
+        *response = SCALTE_TASK_SET_SENSOR_FAILURE;
+        }else{
+        *response = SCALTE_TASK_SET_SENSOR_SUCCESS;
+        }
+       return 0;
+       }
+       
+       /*获取净重的回应*/
+       if(*(uint16_t*)&recv_buffer[SCALE_TASK_CMD_OFFSET] == SCALE_TASK_CMD_GET_NET_WEIGHT_VALUE){
+       for(uint8_t i=0;i< SCALE_TASK_SCALE_CNT;i++){
+        *(int16_t*)&response[i] = recv_buffer[NET_WEIGHT_OFFSET + 2 *i] << 8 | recv_buffer[NET_WEIGHT_OFFSET + 2 * i +1];
+        if(response[i] == -1){
+        response[i] = 0;
+        }
+        }
+         return 0;
+       }
+       
+       break;
+       default:
+       break;
+       }
+     }
+    timeout = SCALE_TASK_CHARACTER_TIMEOUT;
+    }
+  
+  return -1;
+  }
+
+
+
+
 void scale_task(void const * argument)
 {
  osStatus   status;
  osEvent    os_msg;
  task_msg_t *msg;
  int rc; 
- int length_to_read,read_length=0;
- int length_to_write,write_length,remain_length;
- uint32_t timeout;
- uint16_t crc_calculated;
- uint16_t crc_received;
+
  int16_t  net_weight[PROTOCOL_TASK_CMD_SCALE_CNT];
- 
- uint8_t recv_buffer[SCALE_TASK_FRAME_SIZE_MAX];
- //uint8_t send_buffer[SCALE_TASK_FRAME_SIZE_MAX];
+ uint8_t  sensor_result;
  
  osMessageQDef(scale_task_msg_q,2,uint32_t);
  scale_task_msg_q_id = osMessageCreate(osMessageQ(scale_task_msg_q),scale_task_hdl);
@@ -138,83 +308,35 @@ void scale_task(void const * argument)
  log_debug("scale task sync ok.\r\n");
  
  while(1){
-restart:
  os_msg = osMessageGet(scale_task_msg_q_id,SCALE_TASK_MSG_WAIT_TIMEOUT_VALUE);
  if(os_msg.status == osEventMessage){
  msg = (task_msg_t *)os_msg.value.v;
  
+ /*设置传感器*/
+ if(msg->type == REQ_SET_SENSOR){ 
+   
+  rc = scale_task_req(set_sensor,SCALE_TASK_SET_SENSOR_LEN,SCALE_TASK_SEND_TIMEOUT);
+  if(rc != 0){
+  log_error("set sensor error.\r\n");
+  continue;  
+  }
+  rc = scale_task_wait_response(SCALE_TASK_CMD_SET_SENSOR_VALUE,&sensor_result,SCALE_TASK_SET_SENSOR_TIMEOUT);
+  if(rc != 0){
+  continue;  
+  }
+  /*回复操作结果*/
+  protocol_msg.type = RESPONSE_SET_SENSOR;
+  protocol_msg.sensor_result = sensor_result;
+  status = osMessagePut(protocol_task_msg_q_id,(uint32_t)&protocol_msg,SCALE_TASK_MSG_PUT_TIMEOUT_VALUE);
+  if(status != osOK){
+  log_error("scale put sensor result msg err:%d.\r\n",status);
+  }
+  
+ }
+ 
  if(msg->type == REQ_NET_WEIGHT){ 
-   serial_flush(scale_serial_handle);
-   length_to_write = SCALE_TASK_REQ_NET_WEIGHT_LEN;
    
-   write_length = serial_write(scale_serial_handle,req_net_weight,length_to_write);
-   for (int i=0; i < write_length; i++){
-   log_debug("[%2X]\r\n", req_net_weight[i]);
-   }
-   if(write_length != length_to_write){
-   log_error("scale err in  serial buffer write. expect:%d write:%d.\r\n",length_to_write,write_length); 
-   continue;    
-   } 
-   remain_length = serial_complete(scale_serial_handle,SCALE_TASK_SEND_TIMEOUT_VALUE);
-   if(remain_length != 0){
-   log_error("scale err in  serial send timeout.\r\n"); 
-   continue;
-   }
-   
-  timeout =  SCALE_TASK_REQ_NET_WEIGHT_TIMEOUT_VALUE;
-  length_to_read = SCALE_TASK_RESPONSE_NET_WEIGHT_LEN;
-  while(length_to_read != 0){
-  rc = serial_select(scale_serial_handle,timeout);
-  if(rc == -1){
-   log_error("scale select error.\r\n");
-   goto restart;
-  }
-  if(rc == 0){
-   log_error("scale select timeout.\r\n");
-   goto restart;
-  }
-  rc = serial_read(scale_serial_handle,recv_buffer + read_length,length_to_read);
-  if(rc == -1) {
-   log_error("scale read error.\r\n");
-   goto restart;
-  }
-  
-  for (int i=0; i < rc; i++){
-  log_debug("<%2X>\r\n", recv_buffer[read_length + i]);
-  }
-   
-  read_length +=rc;
-  length_to_read -=rc;
-   
-  if(length_to_read != 0){
-  timeout = SCALE_TASK_CHARACTER_TIMEOUT_VALUE;
-  } 
-  }  
-  
-  
- /*正确接收完成*/
-  crc_calculated = protocol_task_crc16(recv_buffer + 1,SCALE_TASK_RESPONSE_NET_WEIGHT_LEN - 3);
-  crc_received = recv_buffer[SCALE_TASK_RESPONSE_NET_WEIGHT_LEN-1] << 8 |recv_buffer[SCALE_TASK_RESPONSE_NET_WEIGHT_LEN-2];
-  if(crc_calculated != crc_received ){
-  log_error("scale recv crc invalid.recv:%d.calculate:%d.\r\n",crc_received,crc_calculated);
-  continue;
-  }  
-  if(recv_buffer[SOF_OFFSET] != SOF_VALUE  ||
-     recv_buffer[ADDR_OFFSET]!= ADDR_VALUE || 
-     recv_buffer[NET_WEIGHT_CMD0_OFFSET] != NET_WEIGHT_CMD0_VALUE ||
-     recv_buffer[NET_WEIGHT_CMD1_OFFSET] != NET_WEIGHT_CMD1_VALUE){
-    log_error("scale recv data invalid.\r\n");
-    continue;
-  }
-  
-  if(recv_buffer[NET_WEIGHT_STATUS_OFFSET] != NET_WEIGHT_STATUS_SUCCESS){
-    log_error("scale net weight status fail.\r\n");
-    continue; 
-  }
-  
-  for(uint8_t i=0;i< PROTOCOL_TASK_CMD_SCALE_CNT;i++){
-  net_weight[i] = recv_buffer[NET_WEIGHT_OFFSET + 2 *i] << 8 | recv_buffer[NET_WEIGHT_OFFSET + 2 * i +1];
-  }
+
   /*回复净重值*/
   protocol_msg.type = RESPONSE_NET_WEIGHT;
   protocol_msg.net_weight = net_weight;

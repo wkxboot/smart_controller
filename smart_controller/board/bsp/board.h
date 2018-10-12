@@ -50,7 +50,11 @@ extern "C" {
 /*******************************************************************************
  * API
  ******************************************************************************/
-  #define  SYS_LED_GPIO   GPIO
+#define  DATA_STREAM_LED_GPIO  GPIO
+#define  DATA_STREAM_LED_PORT  1
+#define  DATA_STREAM_LED_PIN   12
+ 
+#define  SYS_LED_GPIO   GPIO
 #define  SYS_LED_PORT   0
 #define  SYS_LED_PIN    7    
 
@@ -81,6 +85,9 @@ extern "C" {
   
   
 int bsp_board_init();
+void bsp_data_stream_led_toggle();
+void bsp_data_stream_led_on();
+void bsp_data_stream_led_off();
 void bsp_sys_led_toggle();
 
 void bsp_lock_ctrl_open();

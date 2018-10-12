@@ -14,34 +14,26 @@ static task_msg_t *ptr_msg;
 //static task_msg_t  c_msg;
 static task_msg_t  response_msg;
 
-/*温度传感器型号：LAT5061G3839G B值：3839K*/
 static int16_t const t_r_map[][2]={
-  {-12,12224},{-11,11577},{-10,10968},{-9,10394},{-8,9854},{-7,9344},{-6,8864},{-5,8410},{-4,7983},{-3 ,7579},
-  {-2 ,7199} ,{-1,6839}  ,{0,6499}   ,{1,6178 } ,{2,5875 },{3,5588 },{4,5317} ,{5,5060} ,{6,4817} ,{7,4587}  ,
-  {8,4370}   ,{9,4164}   ,{10,3969}  ,{11,3784} ,{12,3608},{13,3442},{14,3284},{15,3135},{16,2993},{17,2858} ,
-  {18,2730}  ,{19,2609}  ,{20,2494}  ,{21,2384} ,{22,2280},{23,2181},{24,2087},{25,1997},{26,1912},{27,1831} ,
-  {28,1754}  ,{29,1680}  ,{30,1610}  ,{31,1543} ,{32,1480},{33,1419},{34,1361},{35,1306},{36,1254},{37,1204} ,
-  {38,1156}  ,{39,1110}  ,{40,1067}  ,{41,1025} ,{42,985} ,{43,947} ,{44,911} ,{45,876} ,{46,843} ,{47,811}  ,
-  {48,781}   ,{49,752}   ,{50,724}   ,{51,697}  ,{52,672} ,{53,647} ,{54,624} ,{55,602} ,{56,580} ,{57,559}
+  {-12,12160},{-11,11520},{-10,10920},{-9,10350},{-8,9820},{-7,9316},{-6,8841},{-5,8392},{-4,7968},{-3 ,7568},
+  {-2 ,7190} ,{-1,6833}  ,{0,6495}   ,{1,6175 } ,{2,5873 },{3,5587 },{4,5315} ,{5,5060} ,{6,4818} ,{7,4589}  ,
+  {8,4372}   ,{9,4167}   ,{10,3972}  ,{11,3788} ,{12,3613},{13,3447},{14,3290},{15,3141},{16,2999},{17,2865} ,
+  {18,2737}  ,{19,2616}  ,{20,2501}  ,{21,2391} ,{22,2287},{23,2188},{24,2094},{25,2005},{26,1919},{27,1838} ,
+  {28,1761}  ,{29,1687}  ,{30,1617}  ,{31,1550} ,{32,1486},{33,1426},{34,1368},{35,1312},{36,1259},{37,1209} ,
+  {38,1161}  ,{39,1115}  ,{40,1071}  ,{41,1029} ,{42,989} ,{43,951} ,{44,914} ,{45,879} ,{46,845} ,{47,813}  ,
+  {48,783}   ,{49,753}   ,{50,725}   ,{51,698}  ,{52,672} ,{53,647} ,{54,624} ,{55,601} ,{56,579} ,{57,559}
 };
+
 
 
 #define  TR_MAP_IDX_OVER_HIGH_ERR          0xff
 #define  TR_MAP_IDX_OVER_LOW_ERR           0xfe
 
 
-typedef enum
-{
-T_DIR_INIT=0,
-T_DIR_UP,
-T_DIR_DOWN
-}temperature_dir_t;
-
 typedef struct
 {
 int16_t           value;
-temperature_dir_t dir;
-uint32_t          time;
+uint32_t          hold_on_time;
 uint8_t           changed;
 }temperature_t;
 
@@ -49,9 +41,8 @@ uint8_t           changed;
 
 static temperature_t   temperature={
 .value = 0,
-.dir   = T_DIR_INIT,
-.time =0,
-.changed=0
+.hold_on_time =0,
+.changed=TRUE
 };
                
 
@@ -120,8 +111,7 @@ int16_t get_t(uint16_t adc)
 void temperature_task(void const *argument)
 {
   uint16_t bypass_r_adc;
-  uint32_t cur_time;
-  uint32_t delta_time;
+  uint32_t cur_time =0,pre_time = 0,delta_time;
   int16_t  t;
   osEvent  os_msg;
   osStatus status;
@@ -137,48 +127,57 @@ void temperature_task(void const *argument)
   os_msg = osMessageGet(temperature_task_msg_q_id,TEMPERATURE_TASK_MSG_WAIT_TIMEOUT);
   if(os_msg.status == osEventMessage){
   ptr_msg = (task_msg_t *)os_msg.value.v;
-  cur_time = osKernelSysTick(); 
-  delta_time = cur_time-temperature.time;
   
   /*温度ADC转换完成消息处理*/
   if(ptr_msg->type == T_ADC_COMPLETED){
-
+      
    bypass_r_adc = ptr_msg->adc;
-   t =get_t(bypass_r_adc);
+   t = get_t(bypass_r_adc);
+   
    /*温度值有变化*/
-   if(t !=temperature.value){
-   if(t == TEMPERATURE_ERR_VALUE_SENSOR    ||\
-      t == TEMPERATURE_ERR_VALUE_OVER_HIGH ||\
-      t == TEMPERATURE_ERR_VALUE_OVER_LOW ){
-      temperature.dir=T_DIR_INIT;
-      temperature.value=t;
-      temperature.changed=TRUE;
-      log_error("temperature err.code:0x%2x.\r\n",temperature.value);
-   }else if(t > temperature.value && temperature.dir == T_DIR_UP    ||\
-            t < temperature.value && temperature.dir == T_DIR_DOWN  ||\
-            temperature.dir == T_DIR_INIT                           ||\
-            delta_time >= TEMPERATURE_TASK_T_HOLD_TIME ){         
-   temperature.dir = t > temperature.value?T_DIR_UP:T_DIR_DOWN;
+   if(t != temperature.value){
+     
+   cur_time = osKernelSysTick(); 
+   delta_time = cur_time - pre_time;
+   pre_time = cur_time;
+   
+   if(t - temperature.value == 1 || t - temperature.value == -1){
+    temperature.hold_on_time += delta_time; 
+    if(temperature.hold_on_time >= TEMPERATURE_TASK_T_HOLD_TIME){
+    temperature.value = t;
+    temperature.changed=TRUE;
+    }
+   }else{
    temperature.value = t;
    temperature.changed=TRUE;
-   temperature.time =cur_time; 
-   }
-   }
-   
-   /*
+   }   
+   }else{
+   temperature.hold_on_time = 0;
+   } 
+  
    if(temperature.changed == TRUE){
-   log_debug("teperature changed dir:%d value:%d C delta_time:%d ms.\r\n",temperature.dir,temperature.value,delta_time);
+
+   if(temperature.value == TEMPERATURE_ERR_VALUE_SENSOR ||\
+   temperature.value == TEMPERATURE_ERR_VALUE_OVER_HIGH ||\
+   temperature.value == TEMPERATURE_ERR_VALUE_OVER_LOW ){
+   log_error("temperature err.code:0x%2x.\r\n",temperature.value);
+   }else{         
+   log_debug("teperature changed:%d C.delta_time:%d ms.\r\n",temperature.value,temperature.hold_on_time);
+   } 
+
+   temperature.hold_on_time = 0;
    temperature.changed=FALSE;
-      
+   /*
    c_msg.type = BROADCAST_TEMPERATURE;
    c_msg.temperature= temperature.value;
    status = osMessagePut(compressor_task_msg_q_id,(uint32_t)&c_msg,TEMPERATURE_TASK_PUT_MSG_TIMEOUT);
    if(status !=osOK){
    log_error("put compressor broadcast t msg error:%d\r\n",status); 
    }  
-   }
   */
   }
+  }
+  
   /*主动请求温度消息处理*/
   if(ptr_msg->type == REQ_TEMPERATURE){
    response_msg.type = RESPONSE_TEMPERATURE;
@@ -187,7 +186,9 @@ void temperature_task(void const *argument)
    if(status !=osOK){
    log_error("put response t msg error:%d\r\n",status); 
    }
-  }
+   }
+  
+ }
+ 
  }
  }
-}

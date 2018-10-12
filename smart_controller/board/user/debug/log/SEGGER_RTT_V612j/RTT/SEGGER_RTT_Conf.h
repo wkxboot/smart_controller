@@ -103,7 +103,7 @@ Revision: $Rev: 5496 $
 // or define SEGGER_RTT_LOCK() to completely disable interrupts.
 //
 
-#define SEGGER_RTT_MAX_INTERRUPT_PRIORITY           (5<<(8-4))   // Interrupt priority to lock on SEGGER_RTT_LOCK on Cortex-M3/4 (Default: 0x50)
+#define SEGGER_RTT_MAX_INTERRUPT_PRIORITY           (2<<(8-3))   // Interrupt priority to lock on SEGGER_RTT_LOCK on Cortex-M3/4 (Default: 0x50)
 
 /*********************************************************************
 *

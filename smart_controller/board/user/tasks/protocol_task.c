@@ -5,6 +5,7 @@
 #include "scale_task.h"
 #include "door_lock_task.h"
 #include "protocol_task.h"
+#include "temperature_task.h"
 #include "log.h"
 #define LOG_MODULE_NAME   "[protocol]"
 #define LOG_MODULE_LEVEL   LOG_LEVEL_DEBUG 
@@ -17,7 +18,7 @@ osMessageQId protocol_task_msg_q_id;
 
 static task_msg_t scale_msg;
 static task_msg_t door_lock_msg;
-
+static task_msg_t temperature_msg;
 
 typedef enum
 {
@@ -107,8 +108,8 @@ static uint16_t protocol_task_prepare_crc16(uint8_t *send_buffer,uint16_t length
 uint16_t crc_calculated;
 crc_calculated = protocol_task_crc16(send_buffer,length_to_write);
 
-send_buffer[length_to_write++] = crc_calculated & 0xff;
-send_buffer[length_to_write++] = crc_calculated >> 8;
+send_buffer[length_to_write++] =  crc_calculated >> 8;
+send_buffer[length_to_write++] =  crc_calculated & 0xff;
 
 return length_to_write;
 }
@@ -200,8 +201,9 @@ static uint8_t protocol_task_get_temperature(int8_t *temperature)
  task_msg_t *msg;
  int        rc = -1;
  
- scale_msg.type = REQ_TEMPERATURE;
- status = osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
+ temperature_msg.type = REQ_TEMPERATURE;
+ temperature_msg.req_q_id = protocol_task_msg_q_id;
+ status = osMessagePut(temperature_task_msg_q_id,(uint32_t)&temperature_msg,PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE);
  if(status != osOK){
   return rc;
  }
@@ -210,11 +212,16 @@ static uint8_t protocol_task_get_temperature(int8_t *temperature)
  if(os_msg.status == osEventMessage){
  msg = (task_msg_t *)os_msg.value.v;
  if(msg->type == RESPONSE_TEMPERATURE){
-   *temperature = msg->temperature;
-   rc = 0;
+   if(TEMPERATURE_ERR_VALUE_OVER_HIGH == (uint8_t)msg->temperature ||
+      TEMPERATURE_ERR_VALUE_OVER_LOW  == (uint8_t)msg->temperature ||
+      TEMPERATURE_ERR_VALUE_SENSOR    == (uint8_t)msg->temperature){
+    *temperature = PROTOCOL_TASK_T_ERR_VALUE;    
+   }else{        
+    *temperature = msg->temperature;
+   }
+ rc = 0;
+ } 
  }
- }
- 
  return rc;
 }
 
@@ -364,7 +371,9 @@ void protocol_task(void const * argument)
  
  while(1){
 protocol_parse_start:
-
+  /*数据流灯*/
+  bsp_data_stream_led_off();
+  
   timeout = PROTOCOL_TASK_FRAME_TIMEOUT_VALUE;
   length_to_read = 2;
   read_length =0;
@@ -387,7 +396,10 @@ protocol_parse_start:
     log_error("protocol read error.\r\n");
     goto protocol_parse_start;
    }
-
+   
+   /*数据流灯*/
+   bsp_data_stream_led_toggle();
+   
    for (int i=0; i < rc; i++){
    log_debug("<%2X>\r\n", recv_buffer[read_length + i]);
    }
@@ -627,6 +639,6 @@ protocol_parse_start:
     log_error("protocol err in  serial send timeout.\r\n",); 
     goto protocol_parse_start;  
     }
-     
+
  }
 }

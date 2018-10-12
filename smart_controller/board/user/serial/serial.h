@@ -19,7 +19,7 @@
 
 SERIAL_BEGIN
 
-#define   SERIAL_MAX_INTERRUPT_PRIORITY         (5 << (8-4))
+#define   SERIAL_MAX_INTERRUPT_PRIORITY         (2 << (8-3))
 
 
 typedef struct 

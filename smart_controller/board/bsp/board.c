@@ -38,6 +38,15 @@
 #include "board.h"
 #include "pin_mux.h"
 
+static void bsp_data_stream_led_pin_init()
+{
+  gpio_pin_config_t pin;
+  pin.pinDirection = kGPIO_DigitalOutput;
+  pin.outputLogic = 0;
+  GPIO_PortInit(DATA_STREAM_LED_GPIO, DATA_STREAM_LED_PORT);
+  GPIO_PinInit(DATA_STREAM_LED_GPIO,DATA_STREAM_LED_PORT,DATA_STREAM_LED_PIN,&pin);
+}
+
 static void bsp_sys_led_pin_init()
 {
   gpio_pin_config_t pin;
@@ -108,6 +117,20 @@ uint8_t bsp_door_sensor_status()
  return status;
 }
 
+void bsp_data_stream_led_toggle()
+{
+ GPIO_PortToggle(DATA_STREAM_LED_GPIO,DATA_STREAM_LED_PORT,(1<<DATA_STREAM_LED_PIN));
+}
+
+void bsp_data_stream_led_on()
+{
+ GPIO_PortSet(DATA_STREAM_LED_GPIO,DATA_STREAM_LED_PORT,(1U<<DATA_STREAM_LED_PIN));
+}
+
+void bsp_data_stream_led_off()
+{
+ GPIO_PortClear( DATA_STREAM_LED_GPIO,DATA_STREAM_LED_PORT,(1U<<DATA_STREAM_LED_PIN));
+}
 
 void bsp_sys_led_toggle()
 {
@@ -116,6 +139,7 @@ void bsp_sys_led_toggle()
 
 int bsp_board_init()
 {
+bsp_data_stream_led_pin_init();
 bsp_sys_led_pin_init();
 bsp_lock_ctrl_pin_init();
 bsp_lock_sensor_pin_init();

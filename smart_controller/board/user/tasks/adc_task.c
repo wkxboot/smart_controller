@@ -69,7 +69,7 @@ static int adc_converter_init()
 
   ADC_Init(TEMPERATURE_ADC, &adcConfigStruct);
 
-    /* Enable channel TEMPERATURE_ADC_CHANNEL's conversion in Sequence A. */
+  /* Enable channel TEMPERATURE_ADC_CHANNEL's conversion in Sequence A. */
   adcConvSeqConfigStruct.channelMask =(1U << TEMPERATURE_ADC_CHANNEL); /* Includes channel TEMPERATURE_ADC_CHANNEL. */
   adcConvSeqConfigStruct.triggerMask = 0U;
   adcConvSeqConfigStruct.triggerPolarity = kADC_TriggerPolarityPositiveEdge;
@@ -79,16 +79,18 @@ static int adc_converter_init()
   ADC_SetConvSeqAConfig(TEMPERATURE_ADC, &adcConvSeqConfigStruct);
   ADC_EnableConvSeqA(TEMPERATURE_ADC, true); /* Enable the conversion sequence A. */
   /* Clear the result register. */
+  /*
   ADC_DoSoftwareTriggerConvSeqA(TEMPERATURE_ADC);
   while (!ADC_GetChannelConversionResult(TEMPERATURE_ADC, TEMPERATURE_ADC_CHANNEL, &gAdcResultInfoStruct))
   {
   }
   ADC_GetConvSeqAGlobalConversionResult(TEMPERATURE_ADC, &gAdcResultInfoStruct);
+ */
   NVIC_SetPriority(TEMPERATURE_ADC_IRQ_ID, 3);
   /* Enable the interrupt. */
   /* Enable the interrupt the for sequence A done. */
   ADC_EnableInterrupts(TEMPERATURE_ADC, kADC_ConvSeqAInterruptEnable);
-  EnableIRQ(TEMPERATURE_ADC_IRQ_ID);//NVIC_EnableIRQ(TEMPERATURE_ADC_IRQ_ID);
+  EnableIRQ(TEMPERATURE_ADC_IRQ_ID);
   
   return 0;
 }

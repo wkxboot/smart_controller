@@ -71,6 +71,7 @@ int main(void)
     }
     log_init();
     tasks_init();
+    
     osThreadDef(cpu_task, cpu_task, osPriorityNormal, 0, 128);
     cpu_task_hdl = osThreadCreate(osThread(cpu_task), NULL);
     log_assert(cpu_task_hdl);
@@ -87,9 +88,9 @@ int main(void)
     protocol_task_hdl = osThreadCreate(osThread(protocol_task), NULL);
     log_assert(protocol_task_hdl);
     
-   osThreadDef(temperature_task, temperature_task, osPriorityNormal, 0, 256);
-   temperature_task_hdl = osThreadCreate(osThread(temperature_task), NULL);
-   log_assert(temperature_task_hdl);
+    osThreadDef(temperature_task, temperature_task, osPriorityNormal, 0, 256);
+    temperature_task_hdl = osThreadCreate(osThread(temperature_task), NULL);
+    log_assert(temperature_task_hdl);
    
     osThreadDef(adc_task, adc_task, osPriorityNormal, 0, 256);
     adc_task_hdl = osThreadCreate(osThread(adc_task), NULL);

@@ -14,9 +14,9 @@ osThreadId   cpu_task_hdl;
 void cpu_task(void const * argument)
 {
  while(1){
- log_one_line("cpu:%%%d.",osGetCPUUsage());
+ log_one_line("cpu:%d%%.",osGetCPUUsage());
  bsp_sys_led_toggle();
- osDelay(200);   
+ osDelay(400);   
  } 
 }
    

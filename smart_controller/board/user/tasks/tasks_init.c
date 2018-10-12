@@ -11,5 +11,6 @@ void tasks_init()
 {
  tasks_sync_evt_group_hdl=xEventGroupCreate(); 
  log_assert(tasks_sync_evt_group_hdl);
+ log_debug("create task sync evt group ok.\r\n");
 }
 
