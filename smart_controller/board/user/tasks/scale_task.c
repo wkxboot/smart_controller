@@ -174,7 +174,7 @@ static int scale_task_wait_response(const uint16_t expect_cmd, uint8_t *const re
      case SCALE_TASK_ADU_STEP:
        if(recv_buffer[SCALE_TASK_SOF_OFFSET] == SCALE_TASK_SOF_VALUE){
         step = SCALE_TASK_CRC_STEP;             
-        length_to_read = recv_buffer[SCALE_TASK_LEN_OFFSET];              
+        length_to_read = recv_buffer[SCALE_TASK_LEN_OFFSET] - SCALE_TASK_LEN_LEN;              
         
         if(length_to_read == 0){
         log_error("scale err in len value:%d.\r\n",recv_buffer[SCALE_TASK_LEN_OFFSET]);
@@ -209,7 +209,7 @@ static int scale_task_wait_response(const uint16_t expect_cmd, uint8_t *const re
        /*设置传感器的回应*/
        if( *(uint16_t*)&recv_buffer[SCALE_TASK_CMD_OFFSET] == SCALE_TASK_CMD_SET_SENSOR_VALUE){
         if(recv_buffer[read_length-3] != SCALE_TASK_STATUS_OK_VALUE){
-        log_error("scale err in status:%d.\r\n",recv_buffer[read_length-3]);
+        log_error("scale set sensor err in status:%d.\r\n",recv_buffer[read_length-3]);
         *response = SCALTE_TASK_SET_SENSOR_FAILURE;
         }else{
         *response = SCALTE_TASK_SET_SENSOR_SUCCESS;
@@ -295,7 +295,10 @@ void scale_task(void const * argument)
   if(rc != 0){
   continue;  
   }
+  
+  if(sensor_result == SCALTE_TASK_SET_SENSOR_SUCCESS){
   log_debug("set sensor 1-2-3-4 ok.\r\n");
+  }
   /*回复操作结果*/
   /*
   protocol_msg.type = RESPONSE_SET_SENSOR;

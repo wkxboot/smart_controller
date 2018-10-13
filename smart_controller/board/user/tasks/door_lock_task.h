@@ -10,7 +10,7 @@ void door_lock_task(void const * argument);
 
 #define  DOOR_LOCK_TASK_MSG_WAIT_TIMEOUT_VALUE       osWaitForever
 #define  DOOR_LOCK_TASK_PUT_MSG_TIMEOUT_VALUE        5
-#define  DOOR_LOCK_TASK_LOCK_TIMEOUT_VALUE           1100
+#define  DOOR_LOCK_TASK_LOCK_TIMEOUT_VALUE           1700
 #define  DOOR_LOCK_TASK_SENSOR_TIMER_TIMEOUT_VALUE   10
 /*状态稳定时间*/
 #define  LOCK_DOOR_TASK_STATUS_STABLE_TIME           100

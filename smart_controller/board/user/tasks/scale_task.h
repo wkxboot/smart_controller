@@ -26,7 +26,7 @@ void scale_task(void const * argument);
 
 
 /*称的协议*/
-#define  SCALE_TASK_SET_SENSOR_TIMEOUT        1100
+#define  SCALE_TASK_SET_SENSOR_TIMEOUT        1700
 #define  SCALE_TASK_GET_NET_WEIGHT_TIMEOUT    800
 #define  SCALE_TASK_SEND_TIMEOUT              10
 #define  SCALE_TASK_CHARACTER_TIMEOUT         3
@@ -44,6 +44,7 @@ void scale_task(void const * argument);
 
 
 #define  SCALE_TASK_SOF_LEN                     1
+#define  SCALE_TASK_LEN_LEN                     1
 #define  SCALE_TASK_CRC_LEN                     2
 
 #define  SCALE_TASK_SOF_VALUE                   0x05

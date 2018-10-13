@@ -72,7 +72,7 @@ void protocol_task(void const * argument);
 #define  PROTOCOL_TASK_CHARACTER_TIMEOUT_VALUE     3
 
 #define  PROTOCOL_TASK_MSG_PUT_TIMEOUT_VALUE       5
-#define  PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE      1200
+#define  PROTOCOL_TASK_MSG_WAIT_TIMEOUT_VALUE      1800
 
 
 #endif

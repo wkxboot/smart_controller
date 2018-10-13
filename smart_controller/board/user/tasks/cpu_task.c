@@ -31,7 +31,7 @@ void cpu_task(void const * argument)
  
  has_data = SEGGER_RTT_HasData(0);
  if(has_data > 0){
- read_cnt = SEGGER_RTT_Read(0,cmd,10);
+ read_cnt = SEGGER_RTT_Read(0,cmd,20);
  if(read_cnt == strlen(SET_SENSOR_CMD_STR) + 2){  
  if(strncmp((const char*)cmd,SET_SENSOR_CMD_STR,strlen(SET_SENSOR_CMD_STR)) == 0){
  scale_msg.type = REQ_SET_SENSOR;
