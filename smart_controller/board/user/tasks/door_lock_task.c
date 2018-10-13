@@ -8,7 +8,7 @@
 #include "door_lock_task.h"
 #include "log.h"
 #define LOG_MODULE_NAME   "[door_lock]"
-#define LOG_MODULE_LEVEL   LOG_LEVEL_DEBUG 
+#define LOG_MODULE_LEVEL   LOG_LEVEL_INFO
 
 
 osThreadId   door_lock_task_hdl;
@@ -54,9 +54,9 @@ static void door_lock_sensor_timer_expired(void const *argument)
    lock_status = status;
    
    if(status == BSP_LOCK_STATUS_OPEN){
-   log_debug("lock status change to --> OPEN.\r\n");
+   log_info("lock status change to --> OPEN.\r\n");
    }else{
-   log_debug("lock status change to --> CLOSE.\r\n");
+   log_info("lock status change to --> CLOSE.\r\n");
    }
    }
   }else{
@@ -71,9 +71,9 @@ static void door_lock_sensor_timer_expired(void const *argument)
    door_status = status;
    
    if(status == BSP_DOOR_STATUS_OPEN){
-   log_debug("door status change to --> OPEN.\r\n");
+   log_info("door status change to --> OPEN.\r\n");
    }else{
-   log_debug("door status change to --> CLOSE.\r\n");
+   log_info("door status change to --> CLOSE.\r\n");
    }
    }
   }else{
@@ -165,7 +165,7 @@ void door_lock_task(void const * argument)
   protocol_msg.type = RESPONSE_UNLOCK_RESULT;
   if(lock_timeout > 0){
   protocol_msg.unlock_result = DOOR_LOCK_TASK_UNLOCK_SUCCESS;
-  log_debug("unlock success.\r\n");
+  log_info("unlock success.\r\n");
   }else{
   protocol_msg.unlock_result = DOOR_LOCK_TASK_UNLOCK_FAILURE;
   log_error("unlock fail.\r\n");
@@ -195,7 +195,7 @@ void door_lock_task(void const * argument)
   protocol_msg.type = RESPONSE_LOCK_RESULT;
   if(lock_timeout > 0){
   protocol_msg.unlock_result = DOOR_LOCK_TASK_LOCK_SUCCESS;
-  log_debug("lock success.\r\n");
+  log_info("lock success.\r\n");
   }else{
   protocol_msg.unlock_result = DOOR_LOCK_TASK_LOCK_FAILURE;
   log_error("lock fail.\r\n");

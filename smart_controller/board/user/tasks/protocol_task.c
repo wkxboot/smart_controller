@@ -8,7 +8,7 @@
 #include "temperature_task.h"
 #include "log.h"
 #define LOG_MODULE_NAME   "[protocol]"
-#define LOG_MODULE_LEVEL   LOG_LEVEL_DEBUG 
+#define LOG_MODULE_LEVEL   LOG_LEVEL_ERROR 
 
 extern int protocol_serial_handle;
 extern serial_hal_driver_t protocol_serial_driver;
@@ -489,8 +489,8 @@ protocol_parse_start:
             
           }else if(recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET] >= 1 && 
                    recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET] <= SCALE_TASK_SCALE_CNT){     
-          send_buffer[length_to_write++] = net_weight[recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET]] >> 8;
-          send_buffer[length_to_write++] = net_weight[recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET]] & 0xFF;
+          send_buffer[length_to_write++] = net_weight[recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET] - 1] >> 8;
+          send_buffer[length_to_write++] = net_weight[recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET] - 1] & 0xFF;
           }else{
           log_error("protocol scale num err:%d.\r\n",recv_buffer[PROTOCOL_TASK_CMD_PARAM_OFFSET]);
           goto protocol_parse_start;

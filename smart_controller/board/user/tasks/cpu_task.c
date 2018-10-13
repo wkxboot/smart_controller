@@ -12,7 +12,8 @@
 osThreadId   cpu_task_hdl;
 
 static   task_msg_t scale_msg;
-#define  SET_SENSOR_CMD_STR    "set sensor 1234"
+#define  SET_SENSOR_CMD_STR1234    "set sensor 1234"
+#define  SET_SENSOR_CMD_STR12      "set sensor 12"
 
 void cpu_task(void const * argument)
 {
@@ -32,12 +33,25 @@ void cpu_task(void const * argument)
  has_data = SEGGER_RTT_HasData(0);
  if(has_data > 0){
  read_cnt = SEGGER_RTT_Read(0,cmd,20);
- if(read_cnt == strlen(SET_SENSOR_CMD_STR) + 2){  
- if(strncmp((const char*)cmd,SET_SENSOR_CMD_STR,strlen(SET_SENSOR_CMD_STR)) == 0){
+ 
+/*设置传感器1234*/
+ if(read_cnt == strlen(SET_SENSOR_CMD_STR1234) + 2){  
+ if(strncmp((const char*)cmd,SET_SENSOR_CMD_STR1234,strlen(SET_SENSOR_CMD_STR1234)) == 0){
  scale_msg.type = REQ_SET_SENSOR;
+ scale_msg.sensor_value = 0x0f;
  osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,5);  
  }  
  }
+ 
+ /*设置传感器12*/
+ if(read_cnt == strlen(SET_SENSOR_CMD_STR12) + 2){  
+ if(strncmp((const char*)cmd,SET_SENSOR_CMD_STR12,strlen(SET_SENSOR_CMD_STR12)) == 0){
+ scale_msg.type = REQ_SET_SENSOR;
+ scale_msg.sensor_value = 0x03;
+ osMessagePut(scale_task_msg_q_id,(uint32_t)&scale_msg,5);  
+ }  
+ }
+ 
  } 
  
  

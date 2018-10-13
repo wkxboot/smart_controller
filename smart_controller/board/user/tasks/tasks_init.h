@@ -64,6 +64,7 @@ int8_t         temperature;
 uint8_t        scale_cnt;
 uint8_t        unlock_result;
 uint8_t        lock_result;
+uint8_t        sensor_value;
 uint8_t        sensor_result;
 uint16_t       manufacture_id;
 uint16_t       adc;

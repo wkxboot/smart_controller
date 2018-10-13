@@ -6,7 +6,7 @@
 #include "protocol_task.h"
 #include "log.h"
 #define LOG_MODULE_NAME   "[scale]"
-#define LOG_MODULE_LEVEL   LOG_LEVEL_DEBUG 
+#define LOG_MODULE_LEVEL   LOG_LEVEL_ERROR 
 
 
 extern int scale_serial_handle;
@@ -220,7 +220,7 @@ static int scale_task_wait_response(const uint16_t expect_cmd, uint8_t *const re
        /*获取净重的回应*/
        if(*(uint16_t*)&recv_buffer[SCALE_TASK_CMD_OFFSET] == SCALE_TASK_CMD_GET_NET_WEIGHT_VALUE){
         if(recv_buffer[read_length-3] != SCALE_TASK_STATUS_OK_VALUE){
-        log_error("scale err in status:%d.\r\n",recv_buffer[read_length-3]);
+        log_error("scale net weight err in status:%d.\r\n",recv_buffer[read_length-3]);
         return -1;
         }
         net_weight = (int16_t*)response;
@@ -252,6 +252,7 @@ void scale_task(void const * argument)
  osStatus   status;
  osEvent    os_msg;
  task_msg_t *msg;
+ uint16_t   crc_calculated;
  int rc; 
 
  int16_t  net_weight[SCALE_TASK_SCALE_CNT];
@@ -285,10 +286,15 @@ void scale_task(void const * argument)
  
  /*设置传感器*/
  if(msg->type == REQ_SET_SENSOR){ 
-   
+  
+  set_sensor[SCALE_TASK_SENSOR_VALUE_OFF] = msg->sensor_value;
+  crc_calculated = scale_task_crc16(set_sensor + 1,SCALE_TASK_SET_SENSOR_LEN - SCALE_TASK_CRC_LEN - SCALE_TASK_SOF_LEN);
+  set_sensor[SCALE_TASK_SET_SENSOR_LEN - 1] = crc_calculated >> 8;
+  set_sensor[SCALE_TASK_SET_SENSOR_LEN - 2] = crc_calculated ;
+
   rc = scale_task_req(set_sensor,SCALE_TASK_SET_SENSOR_LEN,SCALE_TASK_SEND_TIMEOUT);
   if(rc != 0){
-  log_error("set sensor 1-2-3-4 error.\r\n");
+  log_error("set sensor error.\r\n");
   continue;  
   }
   rc = scale_task_wait_response(SCALE_TASK_CMD_SET_SENSOR_VALUE,&sensor_result,SCALE_TASK_SET_SENSOR_TIMEOUT);
@@ -297,7 +303,7 @@ void scale_task(void const * argument)
   }
   
   if(sensor_result == SCALTE_TASK_SET_SENSOR_SUCCESS){
-  log_debug("set sensor 1-2-3-4 ok.\r\n");
+  log_debug("set sensor ok.\r\n");
   }
   /*回复操作结果*/
   /*

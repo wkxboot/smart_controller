@@ -40,6 +40,7 @@ void scale_task(void const * argument);
 #define  SCALE_TASK_LEN_OFFSET                 1
 #define  SCALE_TASK_ADDR_OFFSET                2
 #define  SCALE_TASK_CMD_OFFSET                 3
+#define  SCALE_TASK_SENSOR_VALUE_OFF           5
 #define  SCALE_TASK_NET_WEIGHT_OFFSET          5
 
 
