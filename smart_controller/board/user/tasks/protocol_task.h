@@ -57,7 +57,7 @@ void protocol_task(void const * argument);
 
 
 #define  PROTOCOL_TASK_SCALE_CNT_MAX                20
-#define  PROTOCOL_TASK_T_ERR_VALUE                  0x80
+#define  PROTOCOL_TASK_T_ERR_VALUE                  0x7F
 /*协议定义结束*/
 
 

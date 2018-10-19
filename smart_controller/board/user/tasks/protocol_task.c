@@ -383,22 +383,20 @@ protocol_parse_start:
   while(length_to_read != 0){
   rc = serial_select(protocol_serial_handle,timeout);
   if(rc == -1){
-   log_error("protocol select error.\r\n");
+   log_error("protocol select error.read_len:%d. len_to_read:%d.\r\n",read_length,length_to_read);
    goto protocol_parse_start;
   }
   if(rc == 0){
-   log_error("protocol select timeout.\r\n");
+    log_error("protocol select timeout.read_len:%d. len_to_read:%d.timeout:%d.\r\n",read_length,length_to_read,timeout);
    goto protocol_parse_start;
   }
   
    rc = serial_read(protocol_serial_handle,recv_buffer + read_length,length_to_read);
    if(rc == -1) {
-    log_error("protocol read error.\r\n");
+    log_error("protocol read error.read_len:%d. len_to_read:%d.\r\n",read_length,length_to_read);
     goto protocol_parse_start;
    }
    
-   /*数据流灯*/
-   bsp_data_stream_led_toggle();
    
    for (int i=0; i < rc; i++){
    log_debug("<%2X>\r\n", recv_buffer[read_length + i]);
@@ -623,7 +621,9 @@ protocol_parse_start:
    timeout = PROTOCOL_TASK_CHARACTER_TIMEOUT_VALUE; 
    }       
    }
- 
+   
+    /*数据流灯*/
+    bsp_data_stream_led_toggle();
     /*解析完毕 回应操作结果*/  
     write_length = serial_write(protocol_serial_handle,send_buffer,length_to_write);
     for (int i=0; i < write_length; i++){

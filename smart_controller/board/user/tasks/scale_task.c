@@ -6,7 +6,7 @@
 #include "protocol_task.h"
 #include "log.h"
 #define LOG_MODULE_NAME   "[scale]"
-#define LOG_MODULE_LEVEL   LOG_LEVEL_ERROR 
+#define LOG_MODULE_LEVEL   LOG_LEVEL_ERROR
 
 
 extern int scale_serial_handle;

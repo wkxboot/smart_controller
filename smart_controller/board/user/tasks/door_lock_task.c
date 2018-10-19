@@ -106,7 +106,7 @@ void door_lock_task(void const * argument)
  osDelay(LOCK_DOOR_TASK_STATUS_STABLE_TIME * 2);
  /*上电判断门锁状态*/
  if(door_status == BSP_DOOR_STATUS_OPEN){
-  log_debug("pwr on.unlock.\r\n");
+  log_info("pwr on.unlock.\r\n");
   bsp_lock_ctrl_open();  
  }
  
@@ -168,6 +168,8 @@ void door_lock_task(void const * argument)
   log_info("unlock success.\r\n");
   }else{
   protocol_msg.unlock_result = DOOR_LOCK_TASK_UNLOCK_FAILURE;
+  /*如果开锁失败，就把锁关闭*/
+  bsp_lock_ctrl_close();
   log_error("unlock fail.\r\n");
   }
   
@@ -198,6 +200,8 @@ void door_lock_task(void const * argument)
   log_info("lock success.\r\n");
   }else{
   protocol_msg.unlock_result = DOOR_LOCK_TASK_LOCK_FAILURE;
+  /*如果关锁失败，就把锁打开*/
+  bsp_lock_ctrl_open();
   log_error("lock fail.\r\n");
   }
   
