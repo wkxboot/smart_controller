@@ -16,8 +16,8 @@ osMessageQId door_lock_task_msg_q_id;
 osTimerId    door_lock_sensor_timer_id;
 
 static task_msg_t protocol_msg;
-static volatile uint8_t door_status,lock_status;
-static volatile uint16_t door_status_stable_time,lock_status_stable_time;
+static volatile uint8_t door_status,lock_status,lock_hole_status;
+static volatile uint16_t door_status_stable_time,lock_status_stable_time,lock_hole_status_stable_time;
 
 
 static void door_lock_sensor_timer_expired(void const *argument);
@@ -53,7 +53,7 @@ static void door_lock_sensor_timer_expired(void const *argument)
    lock_status_stable_time = 0;
    lock_status = status;
    
-   if(status == BSP_LOCK_STATUS_OPEN){
+   if(lock_status == BSP_LOCK_STATUS_OPEN){
    log_info("lock status change to --> OPEN.\r\n");
    }else{
    log_info("lock status change to --> CLOSE.\r\n");
@@ -63,6 +63,23 @@ static void door_lock_sensor_timer_expired(void const *argument)
   lock_status_stable_time = 0;
   }
  
+  status =bsp_lock_hole_sensor_status();
+  if(status != lock_hole_status){
+   lock_hole_status_stable_time+=DOOR_LOCK_TASK_SENSOR_TIMER_TIMEOUT_VALUE;
+   if(lock_hole_status_stable_time >= LOCK_DOOR_TASK_STATUS_STABLE_TIME){
+   lock_hole_status_stable_time = 0;
+   lock_hole_status = status;
+   
+   if(lock_hole_status == BSP_LOCK_HOLE_STATUS_OPEN){
+   log_info("lock hole status change to --> OPEN.\r\n");
+   }else{
+   log_info("lock hole status change to --> CLOSE.\r\n");
+   }
+   }
+  }else{
+  lock_hole_status_stable_time = 0;
+  }
+  
   status=bsp_door_sensor_status();
   if(status != door_status){
    door_status_stable_time+=DOOR_LOCK_TASK_SENSOR_TIMER_TIMEOUT_VALUE;
@@ -70,7 +87,7 @@ static void door_lock_sensor_timer_expired(void const *argument)
    door_status_stable_time = 0;
    door_status = status;
    
-   if(status == BSP_DOOR_STATUS_OPEN){
+   if(door_status == BSP_DOOR_STATUS_OPEN){
    log_info("door status change to --> OPEN.\r\n");
    }else{
    log_info("door status change to --> CLOSE.\r\n");
@@ -79,6 +96,9 @@ static void door_lock_sensor_timer_expired(void const *argument)
   }else{
   door_status_stable_time = 0;
   }
+  
+  
+  
  
 }
 
@@ -155,7 +175,8 @@ void door_lock_task(void const * argument)
   
   lock_timeout = DOOR_LOCK_TASK_LOCK_TIMEOUT_VALUE;
   while(lock_timeout > 0){
-  if(lock_status != BSP_LOCK_STATUS_OPEN){
+  if(lock_status      != BSP_LOCK_STATUS_OPEN ||
+     lock_hole_status != BSP_LOCK_HOLE_STATUS_OPEN){
    osDelay(1);
    lock_timeout--;
   }else{
@@ -187,7 +208,9 @@ void door_lock_task(void const * argument)
 
   lock_timeout = DOOR_LOCK_TASK_LOCK_TIMEOUT_VALUE;
   while(lock_timeout > 0){
-  if(lock_status != BSP_LOCK_STATUS_CLOSE || door_status != BSP_DOOR_STATUS_CLOSE){
+  if(lock_status      != BSP_LOCK_STATUS_CLOSE      || \
+     lock_hole_status != BSP_LOCK_HOLE_STATUS_CLOSE || \
+     door_status      != BSP_DOOR_STATUS_CLOSE) {
    osDelay(1);
    lock_timeout--;
   }else{
